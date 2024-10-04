@@ -1,5 +1,11 @@
-#include <HX711.h>
 #include <vector>
+#include <ESP8266WiFi.h>  // Include Wi-Fi library
+#include <ESP8266mDNS.h>  // Include mDNS library
+#include <HX711.h>
+
+// Replace with your network credentials
+const char* ssid = "710";
+const char* password = "********";
 
 #define LOADCELL_DOUT_PIN  D1   // Define the pin connected to HX711 DOUT
 #define LOADCELL_SCK_PIN   D2   // Define the pin connected to HX711 SCK
@@ -34,8 +40,28 @@ float find_majority_average();
 float add_reading(float new_reading);
 
 void setup() {
-  Serial.begin(115200);
-  delay(100);
+  Serial.begin(115200);  // Connect to Wi-Fi
+  
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  
+  // Wait for the connection to succeed
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("Connected to Wi-Fi");
+  
+  delay(1000); // Small delay before starting mDNS
+  // Start the mDNS responder with the hostname "esp8266"
+  if (MDNS.begin("esp8266")) {
+    Serial.println("mDNS responder started: You can access the ESP via 'http://esp8266.local/'");
+  } else {
+    Serial.println("Error starting mDNS responder!");
+  }
 
   // Initialize HX711
   scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
@@ -43,9 +69,11 @@ void setup() {
   Serial.println("Tare complete. Place known weight.");
 }
 
-void loop() {
+void loop() {  
+  // Required to keep mDNS running
+  MDNS.update();
+  
   // Read a value from the HX711 with the current calibration factor
-
   float raw_reading = scale.get_units(1) - offset_weight;  // Subtract the offset weight
   float current_weight = add_reading(raw_reading);  // Add the reading to the sliding window
 
@@ -91,8 +119,8 @@ void loop() {
       }
     }
   }
-  printVector(water_level_history);
-  delay(100);
+  //printVector(water_level_history);
+  //delay(100);
 } 
 
 /**
