@@ -1,15 +1,24 @@
 #include <HX711.h>
+#include <vector>
 
 #define LOADCELL_DOUT_PIN  D1   // Define the pin connected to HX711 DOUT
 #define LOADCELL_SCK_PIN   D2   // Define the pin connected to HX711 SCK
 
 #define WINDOW_SIZE 10  // Number of raw readings to keep in array
+
                        
 float TOLERANCE = 20.0;  // Acceptable deviation in weight for grouping
 float MIN_WATER_LEVEL_DIFFERENCE = 20.0;  // Minimum change in water level to trigger an event
 float calibration_factor = -270;  // Calibration factor. Adjust this based on your sensor.
 float offset_weight = 84.4;  // Reading of scale without any object placed on it.
 float prev_weight = 0.0;  // Last recorded weight.
+
+float raw_reading;  
+
+// Assume when system start the bottle is not placed on it (even it is place on it.. just change its state instationly to true)
+bool is_bottle_placed_down = false; 
+
+std::vector<float> water_level_history = {0.0f};  // Initialize with 0.0
 
 // Create an array to store the sliding window of weight readings
 float window[WINDOW_SIZE];
@@ -20,12 +29,13 @@ int currentSize = 0;  // To track the actual number of readings in the window
 HX711 scale;
 
 // Utility functions
+void printVector(const std::vector<float>& vec);
 float find_majority_average();
 float add_reading(float new_reading);
 
 void setup() {
   Serial.begin(115200);
-  delay(10);
+  delay(100);
 
   // Initialize HX711
   scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
@@ -35,28 +45,55 @@ void setup() {
 
 void loop() {
   // Read a value from the HX711 with the current calibration factor
+
   float raw_reading = scale.get_units(1) - offset_weight;  // Subtract the offset weight
   float current_weight = add_reading(raw_reading);  // Add the reading to the sliding window
-  
-  Serial.print(raw_reading);
-  Serial.print(" ");
-  Serial.print(current_weight);
-  Serial.print(" ");
-  Serial.print(prev_weight);
-  Serial.println();
 
+  //#define _LOG_
+  #ifdef _LOG_
+    Serial.print(raw_reading);
+    Serial.print(" ");
+    Serial.print(current_weight);
+    Serial.print(" ");
+    Serial.print(prev_weight);
+    Serial.println(); 
+  #endif
+
+  // this part of code only tells if bottle is picked or placed and store its weight in prev_wight variable
   if (current_weight != -1 && abs(prev_weight - current_weight) > MIN_WATER_LEVEL_DIFFERENCE){
-    
-    // TODO: Remove this hard coded value 
+    // TODO: Remove this hard coded value (-/+ 15 error) 
     if (abs(current_weight) < 15.0){ // when bottle picked up 
-      Serial.println("Bottle picked : " + String(current_weight));
+      is_bottle_placed_down = false;
+      //Serial.println("Bottle picked : " + String(current_weight));
     } else {
-      Serial.println("Bottle placed  : " + String(current_weight));
+      is_bottle_placed_down = true;
+      //Serial.println("Bottle placed  : " + String(current_weight));
     }
-
     prev_weight = current_weight;
   }
-}
+
+  //#define _LOG_BOTTLE_PLACEMENT_
+  #ifdef _LOG_BOTTLE_PLACEMENT_
+    if (is_bottle_placed_down){
+        Serial.println("Bottle is placed : " + String(prev_weight));
+    } else {
+        Serial.println("Bottle is picked : " + String(prev_weight));
+    }
+  #endif
+  
+  // this part of code append the updated bottle weight to vector
+  if ( is_bottle_placed_down ) {
+    if (water_level_history.empty()) {
+      water_level_history.push_back(prev_weight);
+    } else {
+      if (water_level_history.back() != prev_weight) {
+        water_level_history.push_back(prev_weight);
+      }
+    }
+  }
+  printVector(water_level_history);
+  delay(100);
+} 
 
 /**
  * Utility Functions
@@ -129,3 +166,16 @@ float add_reading(float new_reading) {
     return avg;
 }
 
+// Function to print vector elements in a neat way
+void printVector(const std::vector<float>& vec) {
+    Serial.print("[");
+    for (size_t i = 0; i < vec.size(); ++i) {
+        Serial.print(vec[i]);
+
+        // Add a comma and space between elements, but not after the last one
+        if (i < vec.size() - 1) {
+            Serial.print(", ");
+        }
+    }
+    Serial.println("]");
+}
