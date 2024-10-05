@@ -1,9 +1,14 @@
-#include <WiFi.h>      // ESP32 Wi-Fi library
-#include <vector>
-#include <ESPmDNS.h>   // ESP32 mDNS library
+#include <WiFi.h>
 #include <HX711.h>
 #include "config.h"
+#include <ESPmDNS.h>
 #include <FastLED.h>
+#include <WiFiClient.h>
+#include <HTTPClient.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
+
+QueueHandle_t bottleWeightChangeDataQueue;  // Queue handle
 
 #define LOADCELL_DOUT_PIN  16   // Define the pin connected to HX711 DOUT (GPIO 16)
 #define LOADCELL_SCK_PIN   17   // Define the pin connected to HX711 SCK (GPIO 17)
@@ -23,12 +28,9 @@ float TOLERANCE = 20.0;  // Acceptable deviation in weight for grouping
 float MIN_WATER_LEVEL_DIFFERENCE = 20.0;  // Minimum change in water level to trigger an event
 float calibration_factor = -270;  // Calibration factor. Adjust this based on your sensor.
 float offset_weight = 84.4;  // Reading of scale without any object placed on it.
-float prev_weight = 0.0;  // Last recorded weight.
 
 float raw_reading;  
 
-// Assume when system start the bottle is not placed on it (even it is placed on it.. just change its state instantly to true)
-bool is_bottle_placed_down = false; 
 
 std::vector<float> water_level_history;  // Initialize with 0.0
 
@@ -49,20 +51,62 @@ float find_majority_average();
 float add_reading(float new_reading);
 
 void setup() {
+  Serial.begin(115200);  // Start serial communication
+  delay(200);  // Give the Serial port time to initialize
   
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setBrightness(BRIGHTNESS);
   // Clear all LEDs before setting the next one
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
+
+  // Initialize the queue (size: 10 floats)
+  bottleWeightChangeDataQueue = xQueueCreate(10, sizeof(float));
+  if (bottleWeightChangeDataQueue == NULL) {
+      Serial.println("Failed to create the queue");
+      while (1);  // Stay here if queue creation fails
+  }
   
   // Create the FreeRTOS task for the LED ring light animation
-  xTaskCreate(ledTask, "LED Task", 2048, NULL, 1, NULL);
+  xTaskCreate(
+      ledTask, 
+      "LED Task", 
+      4096,
+      NULL,
+      1,
+      NULL
+  );
 
-  // Create the FreeRTOS task for weight monitoring
-  xTaskCreate(weightTask, "Weight Task", 2048, NULL, 1, NULL);
+  // Create the weightTask FreeRTOS task
+  xTaskCreate(
+      weightTask,            // Task function
+      "Weight Task",         // Name of the task (for debugging)
+      8192,                  // Stack size (in bytes)
+      NULL,                  // Parameter to pass to the task (if any)
+      1,                     // Task priority (1 is a normal priority)
+      NULL                   // Task handle (not needed in this case)
+  );
+/**
+  // Create the readQueueTask FreeRTOS task
+  xTaskCreate(
+      readQueueTask,          // Task function
+      "Read Queue Task",      // Task name
+      4096,                   // Stack size (in bytes)
+      NULL,                   // Parameter to pass to the task (none here)
+      1,                      // Task priority (1 is a normal priority)
+      NULL                    // Task handle (not needed)
+  );
+**/
+  // Create the sendDataTask FreeRTOS task to send data to apis
+  xTaskCreate(
+      sendDataTask,        // Task function
+      "Send Data Task",    // Name of the task
+      8192,                // Stack size
+      NULL,                // Parameter to pass to the task
+      1,                   // Task priority
+      NULL                 // Task handle
+  );
   
-  Serial.begin(115200);  // Start serial communication
   
   // Connect to Wi-Fi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -155,20 +199,6 @@ float add_reading(float new_reading) {
     return avg;
 }
 
-// Function to print vector elements in a neat way
-void printVector(const std::vector<float>& vec) {
-    Serial.print("[");
-    for (size_t i = 0; i < vec.size(); ++i) {
-        Serial.print(vec[i]);
-
-        // Add a comma and space between elements, but not after the last one
-        if (i < vec.size() - 1) {
-            Serial.print(", ");
-        }
-    }
-    Serial.println("]");
-}
-
 // FreeRTOS task for controlling the LED ring light animation
 void ledTask(void *pvParameters) {
   static uint8_t ledIndex = 0;  // Keep track of the current LED
@@ -192,35 +222,112 @@ void ledTask(void *pvParameters) {
   }
 }
 
-// FreeRTOS task to monitor weight using HX711
 void weightTask(void *pvParameters) {
+  
+    float last_weight = 0.0;  // Last recorded weight.
+    float prev_queue_data = 0.0;
+    // Assume when system start the bottle is not placed on it (even it is placed on it.. just change its state instantly to true)
+    bool is_bottle_placed_down = false; 
+
     while (1) {
         // Read a value from the HX711 with the current calibration factor
         float raw_reading = scale.get_units(1) - offset_weight;  // Subtract the offset weight
         float current_weight = add_reading(raw_reading);  // Add the reading to the sliding window
 
         // Check if bottle is picked or placed
-        if (current_weight != -1 && abs(prev_weight - current_weight) > MIN_WATER_LEVEL_DIFFERENCE) {
+        if (current_weight != -1 && abs(last_weight - current_weight) > MIN_WATER_LEVEL_DIFFERENCE) {
             if (abs(current_weight) < 15.0) { // When bottle picked up 
+                // TODO: logic to show status on led
                 is_bottle_placed_down = false;
             } else {
+                // TODO: logic to show status on led
                 is_bottle_placed_down = true;
             }
-            prev_weight = current_weight;
+            last_weight = current_weight;  // Update last recorded weight
         }
 
-        // Append the updated bottle weight to the vector
-        if (is_bottle_placed_down) {
-            if (water_level_history.empty() || water_level_history.back() != prev_weight) {
-                water_level_history.push_back(prev_weight);
+        if (is_bottle_placed_down && prev_queue_data != last_weight) {
+            // Send the sensor data to the queue
+            if (xQueueSend(bottleWeightChangeDataQueue, &last_weight, portMAX_DELAY) != pdPASS) {
+                Serial.println("Failed to send weight change data to the queue");
             }
+            prev_queue_data = last_weight;  // Update prev_queue_data
+            Serial.println("new data " + String(last_weight));
         }
-
-        // Print the updated water level history
-        printVector(water_level_history);
-
         // Add a small delay to control the sampling rate of the weight sensor
-        vTaskDelay(30 / portTICK_PERIOD_MS);  // 500ms delay between each weight read
+        vTaskDelay(30 / portTICK_PERIOD_MS);  // 30ms delay between each weight read
     }
 }
 
+
+#define ARRAY_SIZE 10  
+// FreeRTOS task to read data from the queue and store it in an array
+void readQueueTask(void *pvParameters) {
+    float dataArray[ARRAY_SIZE];  // Array to store data
+    int currentIndex = 0;  // Current index in the array
+    float receivedData = 0.0;
+
+    // Initialize the array
+    memset(dataArray, 0, sizeof(dataArray));
+
+    while (1) {
+        // Check if there's data in the queue
+        if (xQueueReceive(bottleWeightChangeDataQueue, &receivedData, portMAX_DELAY) == pdTRUE) {
+            // Store the received data in the array
+            dataArray[currentIndex] = receivedData;
+            
+            // Move to the next index, wrap around if necessary (circular buffer)
+            currentIndex = (currentIndex + 1) % ARRAY_SIZE;
+        }
+
+        // Print the array every second
+        Serial.println("Data array:");
+        for (int i = 0; i < ARRAY_SIZE; i++) {
+            Serial.print("Index ");
+            Serial.print(i);
+            Serial.print(": ");
+            Serial.println(dataArray[i]);
+        }
+        Serial.println();  // Blank line for readability
+
+        // Wait for 1 second before printing again
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
+// Task for reading from the queue and sending data to API
+void sendDataTask(void *pvParameters) {
+    float receivedData = 0.0;
+
+    while (1) {
+        // Check if there's data in the queue
+        if (xQueueReceive(bottleWeightChangeDataQueue, &receivedData, portMAX_DELAY) == pdTRUE) {
+            // Initialize HTTP client
+            HTTPClient http;
+            WiFiClient client;
+
+            // Prepare the request
+            http.begin(client, BASE_URL);
+            http.addHeader("Content-Type", "application/json");
+
+            // Convert the received data to JSON format
+            String jsonPayload = "{\"weight\": " + String(receivedData) + "}";
+
+            // Send HTTP POST request with the payload
+            int httpResponseCode = http.POST(jsonPayload);
+
+            if (httpResponseCode > 0) {
+                // Print the response
+                String response = http.getString();
+                Serial.println("Response: " + response);
+            } else {
+                Serial.println("Error on sending POST: " + String(httpResponseCode));
+            }
+            // Close connection
+            http.end();
+        }
+
+        // Delay before checking the queue again
+        vTaskDelay(1000 / portTICK_PERIOD_MS);  // 1 second delay
+    }
+}
