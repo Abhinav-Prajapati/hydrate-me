@@ -1,15 +1,24 @@
 #include <vector>
-#include <ESP8266WiFi.h>  // Include Wi-Fi library
-#include <ESP8266mDNS.h>  // Include mDNS library
+#include <WiFi.h>      // ESP32 Wi-Fi library
+#include <ESPmDNS.h>   // ESP32 mDNS library
 #include <HX711.h>
-#include <config.h>
+#include "config.h"
+#include <FastLED.h>
 
-#define LOADCELL_DOUT_PIN  D1   // Define the pin connected to HX711 DOUT
-#define LOADCELL_SCK_PIN   D2   // Define the pin connected to HX711 SCK
+#define LOADCELL_DOUT_PIN  16   // Define the pin connected to HX711 DOUT (GPIO 16)
+#define LOADCELL_SCK_PIN   17   // Define the pin connected to HX711 SCK (GPIO 17)
 
 #define WINDOW_SIZE 10  // Number of raw readings to keep in array
 
-                       
+#define LED_PIN    18         // Pin connected to the WS2812B data line (GPIO 18)
+#define NUM_LEDS   17         // Number of LEDs in the strip or ring
+#define BRIGHTNESS 128        // Brightness level (0-255)
+#define LED_TYPE   WS2812B    // LED type
+#define COLOR_ORDER GRB       // Color order for WS2812B (Green, Red, Blue)
+
+// Create a FastLED array to hold the LED data
+CRGB leds[NUM_LEDS];
+
 float TOLERANCE = 20.0;  // Acceptable deviation in weight for grouping
 float MIN_WATER_LEVEL_DIFFERENCE = 20.0;  // Minimum change in water level to trigger an event
 float calibration_factor = -270;  // Calibration factor. Adjust this based on your sensor.
@@ -18,7 +27,7 @@ float prev_weight = 0.0;  // Last recorded weight.
 
 float raw_reading;  
 
-// Assume when system start the bottle is not placed on it (even it is place on it.. just change its state instationly to true)
+// Assume when system start the bottle is not placed on it (even it is placed on it.. just change its state instantly to true)
 bool is_bottle_placed_down = false; 
 
 std::vector<float> water_level_history;  // Initialize with 0.0
@@ -28,16 +37,25 @@ float window[WINDOW_SIZE];
 int windowIndex = 0;  // Index to track the position for the next reading
 int currentSize = 0;  // To track the actual number of readings in the window
 
-// Create an instance of the HX711 module
+// Create an instance of the HX711 module 
 HX711 scale;
 
 // Utility functions
 void printVector(const std::vector<float>& vec);
 float find_majority_average();
 float add_reading(float new_reading);
+void updateRingLight();
 
 void setup() {
-  Serial.begin(115200);  // Connect to Wi-Fi
+  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS);
+  FastLED.setBrightness(BRIGHTNESS);
+  // Clear all LEDs before setting the next one
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+  FastLED.show();
+  
+  Serial.begin(115200);  // Start serial communication
+
+  // Connect to Wi-Fi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to ");
   Serial.println(WIFI_SSID);
@@ -46,15 +64,24 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
+    updateRingLight();
   }
+  
+  // Show blue color when connected
+  fill_solid(leds, NUM_LEDS, CRGB::Blue);
+  FastLED.show();
+  delay(1000);
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+  FastLED.show();
 
   Serial.println();
   Serial.println("Connected to Wi-Fi");
   
   delay(1000); // Small delay before starting mDNS
-  // Start the mDNS responder with the hostname "esp8266"
-  if (MDNS.begin("esp8266")) {
-    Serial.println("mDNS responder started: You can access the ESP via 'http://esp8266.local/'");
+
+  // Start the mDNS responder with the hostname "esp32"
+  if (MDNS.begin("esp32")) {
+    Serial.println("mDNS responder started: You can access the ESP32 via 'http://esp32.local/'");
   } else {
     Serial.println("Error starting mDNS responder!");
   }
@@ -66,9 +93,6 @@ void setup() {
 }
 
 void loop() {  
-  // Required to keep mDNS running
-  MDNS.update();
-  
   // Read a value from the HX711 with the current calibration factor
   float raw_reading = scale.get_units(1) - offset_weight;  // Subtract the offset weight
   float current_weight = add_reading(raw_reading);  // Add the reading to the sliding window
@@ -83,15 +107,12 @@ void loop() {
     Serial.println(); 
   #endif
 
-  // this part of code only tells if bottle is picked or placed and store its weight in prev_wight variable
+  // This part of code only tells if bottle is picked or placed and stores its weight in prev_weight variable
   if (current_weight != -1 && abs(prev_weight - current_weight) > MIN_WATER_LEVEL_DIFFERENCE){
-    // TODO: Remove this hard coded value (-/+ 15 error) 
-    if (abs(current_weight) < 15.0){ // when bottle picked up 
+    if (abs(current_weight) < 15.0){ // When bottle picked up 
       is_bottle_placed_down = false;
-      //Serial.println("Bottle picked : " + String(current_weight));
     } else {
       is_bottle_placed_down = true;
-      //Serial.println("Bottle placed  : " + String(current_weight));
     }
     prev_weight = current_weight;
   }
@@ -104,8 +125,19 @@ void loop() {
         Serial.println("Bottle is picked : " + String(prev_weight));
     }
   #endif
+
+  #define _LED_STATUS_BOTTLE_PLACEMENT_
+  #ifdef _LED_STATUS_BOTTLE_PLACEMENT_
+    if (is_bottle_placed_down){
+        fill_solid(leds, NUM_LEDS, CRGB::Black);
+    } else {
+      fill_solid(leds, NUM_LEDS, CRGB::Green);
+    }
+    FastLED.show();
+  #endif
   
-  // this part of code append the updated bottle weight to vector
+  
+  // Append the updated bottle weight to vector
   if ( is_bottle_placed_down ) {
     if (water_level_history.empty()) {
       water_level_history.push_back(prev_weight);
@@ -115,9 +147,12 @@ void loop() {
       }
     }
   }
-  printVector(water_level_history);
-  //delay(100);
-} 
+  printVector(water_level_history);  
+
+  // Call the non-blocking ring light animation function
+
+  // Ensure the ESP doesn't hang due to long-running tasks
+}
 
 /**
  * Utility Functions
@@ -167,7 +202,7 @@ float add_reading(float new_reading) {
     window[windowIndex] = new_reading;
 
     // Move to the next index, wrap around if necessary (circular buffer)
-    windowIndex = (windowIndex + 1) % WINDOW_SIZE; // This is clean AF. I dk from where chatgpt pulled this. The is most clean array implemntaion of queue i have ever seen
+    windowIndex = (windowIndex + 1) % WINDOW_SIZE;
 
     // Track the actual number of elements in the window
     if (currentSize < WINDOW_SIZE) {
@@ -176,17 +211,6 @@ float add_reading(float new_reading) {
 
     // Find the average of the majority close values in the window
     float avg = find_majority_average();
-
-    /**
-    // Log information about the current average
-    if (avg != -1) {
-        Serial.print("Current average of majority close values: ");
-        Serial.println(avg);
-    } else {
-        Serial.println("No majority close values found yet.");
-    }
-    */
-
     return avg;
 }
 
@@ -203,3 +227,31 @@ void printVector(const std::vector<float>& vec) {
     }
     Serial.println("]");
 }
+
+// Function to animate the WS2812B ring light without blocking the main loop
+void updateRingLight() {
+  static uint8_t ledIndex = 0;  // Keep track of the current LED
+  static int8_t direction = 1;  // Control the direction of the animation (1 = forward, -1 = backward)
+  static unsigned long previousMillis = 0;  // Store the last time the animation was updated
+  const long interval = 20;  // Animation interval in milliseconds
+
+  unsigned long currentMillis = millis();
+  
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+    // Clear all LEDs before setting the next one
+    fill_solid(leds, NUM_LEDS, CRGB::Black);
+
+    // Set the current LED to blue
+    leds[ledIndex] = CRGB::Purple;
+
+    // Update the LED strip
+    FastLED.show();
+
+    // Move the index forward or backward, depending on the direction
+    ledIndex += direction;
+    ledIndex = ledIndex % NUM_LEDS; 
+  }
+}
+
