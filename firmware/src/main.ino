@@ -5,7 +5,7 @@
 
 // Replace with your network credentials
 const char* ssid = "710";
-const char* password = "********";
+const char* password = "***";
 
 #define LOADCELL_DOUT_PIN  D1   // Define the pin connected to HX711 DOUT
 #define LOADCELL_SCK_PIN   D2   // Define the pin connected to HX711 SCK
@@ -24,7 +24,7 @@ float raw_reading;
 // Assume when system start the bottle is not placed on it (even it is place on it.. just change its state instationly to true)
 bool is_bottle_placed_down = false; 
 
-std::vector<float> water_level_history = {0.0f};  // Initialize with 0.0
+std::vector<float> water_level_history;  // Initialize with 0.0
 
 // Create an array to store the sliding window of weight readings
 float window[WINDOW_SIZE];
@@ -119,7 +119,7 @@ void loop() {
       }
     }
   }
-  //printVector(water_level_history);
+  printVector(water_level_history);
   //delay(100);
 } 
 
