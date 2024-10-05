@@ -1,12 +1,14 @@
 #include <WiFi.h>
 #include <HX711.h>
-#include "config.h"
 #include <ESPmDNS.h>
 #include <FastLED.h>
 #include <WiFiClient.h>
 #include <HTTPClient.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
+
+#include "config.h"
+#include "status_LED.h"  
 
 QueueHandle_t bottleWeightChangeDataQueue;  // Queue handle
 
@@ -15,22 +17,12 @@ QueueHandle_t bottleWeightChangeDataQueue;  // Queue handle
 
 #define WINDOW_SIZE 10  // Number of raw readings to keep in array
 
-#define LED_PIN    18         // Pin connected to the WS2812B data line (GPIO 18)
-#define NUM_LEDS   17         // Number of LEDs in the strip or ring
-#define BRIGHTNESS 128        // Brightness level (0-255)
-#define LED_TYPE   WS2812B    // LED type
-#define COLOR_ORDER GRB       // Color order for WS2812B (Green, Red, Blue)
-
-// Create a FastLED array to hold the LED data
-CRGB leds[NUM_LEDS];
-
 float TOLERANCE = 20.0;  // Acceptable deviation in weight for grouping
 float MIN_WATER_LEVEL_DIFFERENCE = 20.0;  // Minimum change in water level to trigger an event
 float calibration_factor = -270;  // Calibration factor. Adjust this based on your sensor.
 float offset_weight = 84.4;  // Reading of scale without any object placed on it.
 
 float raw_reading;  
-
 
 std::vector<float> water_level_history;  // Initialize with 0.0
 
@@ -42,23 +34,25 @@ int currentSize = 0;  // To track the actual number of readings in the window
 // Create an instance of the HX711 module 
 HX711 scale;
 
-// FreeRTOS task for the LED ring light animation
-void ledTask(void *pvParameters);
-
 // Utility functions
 void printVector(const std::vector<float>& vec);
 float find_majority_average();
 float add_reading(float new_reading);
 
 void setup() {
+  
   Serial.begin(115200);  // Start serial communication
   delay(200);  // Give the Serial port time to initialize
   
-  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS);
+  FastLED.addLeds<WS2812B, LED_PIN,GRB>(leds, NUM_LEDS);
   FastLED.setBrightness(BRIGHTNESS);
-  // Clear all LEDs before setting the next one
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
+  
+  // Initialize HX711
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  scale.set_scale(calibration_factor);  // Set the scale to calibration factor
+  Serial.println("Tare complete. Place known weight.");
 
   // Initialize the queue (size: 10 floats)
   bottleWeightChangeDataQueue = xQueueCreate(10, sizeof(float));
@@ -67,12 +61,13 @@ void setup() {
       while (1);  // Stay here if queue creation fails
   }
   
+  int animationMode = 1;  // Set animation mode (0 = mute, 1 = booting, etc.)
   // Create the FreeRTOS task for the LED ring light animation
   xTaskCreate(
       ledTask, 
       "LED Task", 
       4096,
-      NULL,
+      &animationMode,
       1,
       NULL
   );
@@ -107,18 +102,15 @@ void setup() {
       NULL                 // Task handle
   );
   
-  
   // Connect to Wi-Fi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to ");
   Serial.println(WIFI_SSID);
-  
   // Wait for the connection to succeed
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  
   Serial.println();
   Serial.println("Connected to Wi-Fi");
   
@@ -128,11 +120,6 @@ void setup() {
   } else {
     Serial.println("Error starting mDNS responder!");
   }
-
-  // Initialize HX711
-  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
-  scale.set_scale(calibration_factor);  // Set the scale to calibration factor
-  Serial.println("Tare complete. Place known weight.");
 }
 
 void loop() {  
@@ -197,29 +184,6 @@ float add_reading(float new_reading) {
     // Find the average of the majority close values in the window
     float avg = find_majority_average();
     return avg;
-}
-
-// FreeRTOS task for controlling the LED ring light animation
-void ledTask(void *pvParameters) {
-  static uint8_t ledIndex = 0;  // Keep track of the current LED
-  static int8_t direction = 1;  // Control the direction of the animation (1 = forward, -1 = backward)
-
-  while (1) {  // Infinite loop for the FreeRTOS task
-    // Clear all LEDs before setting the next one
-    fill_solid(leds, NUM_LEDS, CRGB::Black);
-
-    // Set the current LED to purple
-    leds[ledIndex] = CRGB::Purple;
-
-    // Update the LED strip
-    FastLED.show();
-
-    ledIndex += direction;   // Move back into the valid range
-    ledIndex = ledIndex % NUM_LEDS;
-
-    // Add a small delay (in FreeRTOS terms, this is non-blocking)
-    vTaskDelay(200 / portTICK_PERIOD_MS);  // 200ms delay between each update
-  }
 }
 
 void weightTask(void *pvParameters) {
