@@ -40,21 +40,27 @@ int currentSize = 0;  // To track the actual number of readings in the window
 // Create an instance of the HX711 module 
 HX711 scale;
 
+// FreeRTOS task for the LED ring light animation
+void ledTask(void *pvParameters);
+
 // Utility functions
 void printVector(const std::vector<float>& vec);
 float find_majority_average();
 float add_reading(float new_reading);
-void updateRingLight();
 
 void setup() {
+  
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setBrightness(BRIGHTNESS);
   // Clear all LEDs before setting the next one
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
   
+  // Create the FreeRTOS task for the LED ring light animation
+  xTaskCreate(ledTask, "LED Task", 2048, NULL, 1, NULL);
+  
   Serial.begin(115200);  // Start serial communication
-
+  
   // Connect to Wi-Fi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to ");
@@ -64,21 +70,11 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-    updateRingLight();
   }
   
-  // Show blue color when connected
-  fill_solid(leds, NUM_LEDS, CRGB::Blue);
-  FastLED.show();
-  delay(1000);
-  fill_solid(leds, NUM_LEDS, CRGB::Black);
-  FastLED.show();
-
   Serial.println();
   Serial.println("Connected to Wi-Fi");
   
-  delay(1000); // Small delay before starting mDNS
-
   // Start the mDNS responder with the hostname "esp32"
   if (MDNS.begin("esp32")) {
     Serial.println("mDNS responder started: You can access the ESP32 via 'http://esp32.local/'");
@@ -126,17 +122,6 @@ void loop() {
     }
   #endif
 
-  #define _LED_STATUS_BOTTLE_PLACEMENT_
-  #ifdef _LED_STATUS_BOTTLE_PLACEMENT_
-    if (is_bottle_placed_down){
-        fill_solid(leds, NUM_LEDS, CRGB::Black);
-    } else {
-      fill_solid(leds, NUM_LEDS, CRGB::Green);
-    }
-    FastLED.show();
-  #endif
-  
-  
   // Append the updated bottle weight to vector
   if ( is_bottle_placed_down ) {
     if (water_level_history.empty()) {
@@ -148,10 +133,6 @@ void loop() {
     }
   }
   printVector(water_level_history);  
-
-  // Call the non-blocking ring light animation function
-
-  // Ensure the ESP doesn't hang due to long-running tasks
 }
 
 /**
@@ -228,30 +209,26 @@ void printVector(const std::vector<float>& vec) {
     Serial.println("]");
 }
 
-// Function to animate the WS2812B ring light without blocking the main loop
-void updateRingLight() {
+// FreeRTOS task for controlling the LED ring light animation
+void ledTask(void *pvParameters) {
   static uint8_t ledIndex = 0;  // Keep track of the current LED
   static int8_t direction = 1;  // Control the direction of the animation (1 = forward, -1 = backward)
-  static unsigned long previousMillis = 0;  // Store the last time the animation was updated
-  const long interval = 20;  // Animation interval in milliseconds
 
-  unsigned long currentMillis = millis();
-  
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-
+  while (1) {  // Infinite loop for the FreeRTOS task
     // Clear all LEDs before setting the next one
     fill_solid(leds, NUM_LEDS, CRGB::Black);
 
-    // Set the current LED to blue
+    // Set the current LED to purple
     leds[ledIndex] = CRGB::Purple;
 
     // Update the LED strip
     FastLED.show();
 
-    // Move the index forward or backward, depending on the direction
-    ledIndex += direction;
-    ledIndex = ledIndex % NUM_LEDS; 
+    ledIndex += direction;   // Move back into the valid range
+    ledIndex = ledIndex % NUM_LEDS;
+
+    // Add a small delay (in FreeRTOS terms, this is non-blocking)
+    vTaskDelay(200 / portTICK_PERIOD_MS);  // 200ms delay between each update
   }
 }
 
