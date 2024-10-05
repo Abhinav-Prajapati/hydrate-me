@@ -54,7 +54,7 @@ float add_reading(float new_reading);
  * 4 - breathing blue
  * 5 - breathing red
  * */
-int animation_mode = 0;  // Set animation mode (0 = mute, 1 = booting, 2 = )
+int animation_mode = 1;
 
 void setup() {
   
@@ -66,11 +66,6 @@ void setup() {
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
   
-  // Initialize HX711
-  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
-  scale.set_scale(calibration_factor);  // Set the scale to calibration factor
-  Serial.println("Tare complete. Place known weight.");
-
   xMutex = xSemaphoreCreateMutex();
   if (xMutex == NULL){
       Serial.println("unable to create mutex");
@@ -93,6 +88,36 @@ void setup() {
       1,
       NULL
   );
+  
+  // Connect to Wi-Fi
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to ");
+  Serial.println(WIFI_SSID);
+  // Wait for the connection to succeed
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.println("Connected to Wi-Fi");
+  
+  // Start the mDNS responder with the hostname "esp32"
+  if (MDNS.begin("esp32")) {
+    Serial.println("mDNS responder started: You can access the ESP32 via 'http://esp32.local/'");
+  } else {
+    Serial.println("Error starting mDNS responder!");
+  }
+  
+  // Call the function to wait for "pong"
+  // Wait for server
+  waitForPong();
+  animation_mode = 0; // turn off led once wifi mDNS and server is up running
+  
+  // Initialize HX711
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  scale.set_scale(calibration_factor);  // Set the scale to calibration factor
+  Serial.println("Tare complete. Place known weight.");
+
 
   // Create the weightTask FreeRTOS task
   xTaskCreate(
@@ -124,24 +149,6 @@ void setup() {
       NULL                 // Task handle
   );
   
-  // Connect to Wi-Fi
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to ");
-  Serial.println(WIFI_SSID);
-  // Wait for the connection to succeed
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println();
-  Serial.println("Connected to Wi-Fi");
-  
-  // Start the mDNS responder with the hostname "esp32"
-  if (MDNS.begin("esp32")) {
-    Serial.println("mDNS responder started: You can access the ESP32 via 'http://esp32.local/'");
-  } else {
-    Serial.println("Error starting mDNS responder!");
-  }
 }
 
 void loop() {  
@@ -386,5 +393,38 @@ void ledTask(void *pvParameters) {
     if (mode < 3) {
       vTaskDelay(80 / portTICK_PERIOD_MS); // 40ms delay for other effects
     }
+  }
+}
+
+// Function to keep sending requests until "pong" is received
+void waitForPong() {
+  while (true) {
+    if (WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+
+      // Make a GET request to the /ping endpoint
+      http.begin("http://192.168.0.114:8000/api/ping"); // Specify destination for HTTP request
+      int httpResponseCode = http.GET(); // Send the request
+
+      if (httpResponseCode > 0) {
+        // Get the response payload
+        String response = http.getString();
+        Serial.println("Response from server: " + response);
+
+        // Check if the response contains "pong"
+        if (response.indexOf("pong") != -1) {
+          Serial.println("Pong received. Exiting loop.");
+          break; // Exit the loop if "pong" is received
+        }
+      } else {
+        Serial.println("Error on HTTP request");
+      }
+
+      // Free resources
+      http.end();
+    }
+
+    // Wait a second before sending the next request
+    delay(1000);
   }
 }
