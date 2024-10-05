@@ -1,5 +1,5 @@
-#include <vector>
 #include <WiFi.h>      // ESP32 Wi-Fi library
+#include <vector>
 #include <ESPmDNS.h>   // ESP32 mDNS library
 #include <HX711.h>
 #include "config.h"
@@ -58,6 +58,9 @@ void setup() {
   
   // Create the FreeRTOS task for the LED ring light animation
   xTaskCreate(ledTask, "LED Task", 2048, NULL, 1, NULL);
+
+  // Create the FreeRTOS task for weight monitoring
+  xTaskCreate(weightTask, "Weight Task", 2048, NULL, 1, NULL);
   
   Serial.begin(115200);  // Start serial communication
   
@@ -89,50 +92,7 @@ void setup() {
 }
 
 void loop() {  
-  // Read a value from the HX711 with the current calibration factor
-  float raw_reading = scale.get_units(1) - offset_weight;  // Subtract the offset weight
-  float current_weight = add_reading(raw_reading);  // Add the reading to the sliding window
-
-  //#define _LOG_
-  #ifdef _LOG_
-    Serial.print(raw_reading);
-    Serial.print(" ");
-    Serial.print(current_weight);
-    Serial.print(" ");
-    Serial.print(prev_weight);
-    Serial.println(); 
-  #endif
-
-  // This part of code only tells if bottle is picked or placed and stores its weight in prev_weight variable
-  if (current_weight != -1 && abs(prev_weight - current_weight) > MIN_WATER_LEVEL_DIFFERENCE){
-    if (abs(current_weight) < 15.0){ // When bottle picked up 
-      is_bottle_placed_down = false;
-    } else {
-      is_bottle_placed_down = true;
-    }
-    prev_weight = current_weight;
-  }
-
-  //#define _LOG_BOTTLE_PLACEMENT_
-  #ifdef _LOG_BOTTLE_PLACEMENT_
-    if (is_bottle_placed_down){
-        Serial.println("Bottle is placed : " + String(prev_weight));
-    } else {
-        Serial.println("Bottle is picked : " + String(prev_weight));
-    }
-  #endif
-
-  // Append the updated bottle weight to vector
-  if ( is_bottle_placed_down ) {
-    if (water_level_history.empty()) {
-      water_level_history.push_back(prev_weight);
-    } else {
-      if (water_level_history.back() != prev_weight) {
-        water_level_history.push_back(prev_weight);
-      }
-    }
-  }
-  printVector(water_level_history);  
+  
 }
 
 /**
@@ -230,5 +190,37 @@ void ledTask(void *pvParameters) {
     // Add a small delay (in FreeRTOS terms, this is non-blocking)
     vTaskDelay(200 / portTICK_PERIOD_MS);  // 200ms delay between each update
   }
+}
+
+// FreeRTOS task to monitor weight using HX711
+void weightTask(void *pvParameters) {
+    while (1) {
+        // Read a value from the HX711 with the current calibration factor
+        float raw_reading = scale.get_units(1) - offset_weight;  // Subtract the offset weight
+        float current_weight = add_reading(raw_reading);  // Add the reading to the sliding window
+
+        // Check if bottle is picked or placed
+        if (current_weight != -1 && abs(prev_weight - current_weight) > MIN_WATER_LEVEL_DIFFERENCE) {
+            if (abs(current_weight) < 15.0) { // When bottle picked up 
+                is_bottle_placed_down = false;
+            } else {
+                is_bottle_placed_down = true;
+            }
+            prev_weight = current_weight;
+        }
+
+        // Append the updated bottle weight to the vector
+        if (is_bottle_placed_down) {
+            if (water_level_history.empty() || water_level_history.back() != prev_weight) {
+                water_level_history.push_back(prev_weight);
+            }
+        }
+
+        // Print the updated water level history
+        printVector(water_level_history);
+
+        // Add a small delay to control the sampling rate of the weight sensor
+        vTaskDelay(30 / portTICK_PERIOD_MS);  // 500ms delay between each weight read
+    }
 }
 
