@@ -2,10 +2,7 @@
 #include <ESP8266WiFi.h>  // Include Wi-Fi library
 #include <ESP8266mDNS.h>  // Include mDNS library
 #include <HX711.h>
-
-// Replace with your network credentials
-const char* ssid = "710";
-const char* password = "***";
+#include <config.h>
 
 #define LOADCELL_DOUT_PIN  D1   // Define the pin connected to HX711 DOUT
 #define LOADCELL_SCK_PIN   D2   // Define the pin connected to HX711 SCK
@@ -41,10 +38,9 @@ float add_reading(float new_reading);
 
 void setup() {
   Serial.begin(115200);  // Connect to Wi-Fi
-  
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to ");
-  Serial.println(ssid);
+  Serial.println(WIFI_SSID);
   
   // Wait for the connection to succeed
   while (WiFi.status() != WL_CONNECTED) {
