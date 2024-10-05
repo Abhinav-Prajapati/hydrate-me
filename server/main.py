@@ -17,3 +17,7 @@ async def receive_weight(data: WeightData):
     # You can also store or process the data here
     return {"status": "success", "received_weight": data.weight}
 
+# Define a /ping endpoint for health checks
+@app.get("/api/ping")
+async def ping():
+    return {"message": "pong"}
