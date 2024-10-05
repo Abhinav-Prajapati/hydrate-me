@@ -6,11 +6,13 @@
 #include <HTTPClient.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
+#include <freertos/semphr.h>
 
 #include "config.h"
 #include "status_LED.h"  
 
 QueueHandle_t bottleWeightChangeDataQueue;  // Queue handle
+SemaphoreHandle_t xMutex;  // Mutex handler to handle animation_mode updations
 
 #define LOADCELL_DOUT_PIN  16   // Define the pin connected to HX711 DOUT (GPIO 16)
 #define LOADCELL_SCK_PIN   17   // Define the pin connected to HX711 SCK (GPIO 17)
@@ -39,6 +41,21 @@ void printVector(const std::vector<float>& vec);
 float find_majority_average();
 float add_reading(float new_reading);
 
+/**
+ * animation_mode varialbe can be set to any of below mentioned 
+ * values.
+ * These variables are intended to set by different tasks via semaphors
+ * NOTE: Use mutex to safely reading and updating this variable
+ * Animation mode
+ * 0 - Off
+ * 1 - Spinner (booting)
+ * 2 - error
+ * 3 - breathing green
+ * 4 - breathing blue
+ * 5 - breathing red
+ * */
+int animation_mode = 0;  // Set animation mode (0 = mute, 1 = booting, 2 = )
+
 void setup() {
   
   Serial.begin(115200);  // Start serial communication
@@ -54,6 +71,12 @@ void setup() {
   scale.set_scale(calibration_factor);  // Set the scale to calibration factor
   Serial.println("Tare complete. Place known weight.");
 
+  xMutex = xSemaphoreCreateMutex();
+  if (xMutex == NULL){
+      Serial.println("unable to create mutex");
+      while(1);
+  }
+
   // Initialize the queue (size: 10 floats)
   bottleWeightChangeDataQueue = xQueueCreate(10, sizeof(float));
   if (bottleWeightChangeDataQueue == NULL) {
@@ -61,13 +84,12 @@ void setup() {
       while (1);  // Stay here if queue creation fails
   }
   
-  int animationMode = 1;  // Set animation mode (0 = mute, 1 = booting, etc.)
   // Create the FreeRTOS task for the LED ring light animation
   xTaskCreate(
       ledTask, 
       "LED Task", 
       4096,
-      &animationMode,
+      &animation_mode,
       1,
       NULL
   );
@@ -96,7 +118,7 @@ void setup() {
   xTaskCreate(
       sendDataTask,        // Task function
       "Send Data Task",    // Name of the task
-      8192,                // Stack size
+      8192,                  // Stack size (in bytes)
       NULL,                // Parameter to pass to the task
       1,                   // Task priority
       NULL                 // Task handle
@@ -201,10 +223,22 @@ void weightTask(void *pvParameters) {
         // Check if bottle is picked or placed
         if (current_weight != -1 && abs(last_weight - current_weight) > MIN_WATER_LEVEL_DIFFERENCE) {
             if (abs(current_weight) < 15.0) { // When bottle picked up 
-                // TODO: logic to show status on led
+                // Lock the mutex before writing to the shared variable
+                if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+                    // TODO: make api call to server so it knows that bottle has been pikced 
+                    Serial.println("bottle has been picked");
+                    animation_mode = 3; // if bottle is picked up set animation to breating green
+                    xSemaphoreGive(xMutex);  // Release the mutex
+                }
                 is_bottle_placed_down = false;
             } else {
-                // TODO: logic to show status on led
+                // Lock the mutex before writing to the shared variable
+                if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+                    // TODO: make api call to server so it knows that bottle has been placed back
+                    Serial.println("bottle has been placed back");
+                    animation_mode = 0; // if bottle is placed down turn off animation
+                    xSemaphoreGive(xMutex);  // Release the mutex
+                }
                 is_bottle_placed_down = true;
             }
             last_weight = current_weight;  // Update last recorded weight
@@ -294,4 +328,63 @@ void sendDataTask(void *pvParameters) {
         // Delay before checking the queue again
         vTaskDelay(1000 / portTICK_PERIOD_MS);  // 1 second delay
     }
+}
+
+
+void ledTask(void *pvParameters) {
+  int mode;
+  // Lock the mutex before reading the shared variable
+  int stepSize = 200;              // Time step in ms
+
+  while (1) {
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+      mode = animation_mode;
+      xSemaphoreGive(xMutex);  // Release the mutex
+    }
+    switch (mode) {
+    case 0: // MUTE animation
+      fill(MUTE);
+      FastLED.show();
+      break;
+
+    case 1:                                        // Booting spinner animation
+      spinner(BOOTING_BG, BOOTING_FG, counter, 4); // 4 pixel width
+      break;
+
+    case 2: // Error pulse animation
+      pulse(ERR_MIN, ERR_MAX, ratio, up);
+      break;
+
+    case 3: // Breathing effect animation (Green)
+      breathingGreen(); // Use green color for breathing effect
+      break;
+
+    case 4: // Breathing effect animation (Blue)
+      breathingBlue(); // Use blue color for breathing effect
+      break;
+
+    case 5: // Breathing effect animation (Reddish-Orange)
+      breathingRedOrange(); // Use reddish-orange color for breathing effect
+      break;
+
+    default: // Blank or default animation
+      fill(CRGB::Black);
+      FastLED.show();
+      break;
+    }
+
+    // Animation update logic for spinner and pulse effects
+    if (mode < 3) {  // Breathing effect has its own timing, so skip this part for modes 3, 4, 5
+      counter = ++counter % NUM_LEDS;
+      ratio = min(1.0, (double)(counter * stepSize + (millis() - stepSize)) / 1000);
+      if (counter == 0) {
+        up = !up; // Swap direction
+      }
+    }
+
+    // Task delay for smooth animation updates (except breathing which has its own delay)
+    if (mode < 3) {
+      vTaskDelay(80 / portTICK_PERIOD_MS); // 40ms delay for other effects
+    }
+  }
 }
