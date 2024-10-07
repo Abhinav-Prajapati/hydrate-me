@@ -12,7 +12,7 @@ def on_message(client, userdata, msg):
 def run_subscriber():
     broker = "localhost"
     port = 1883
-    topic = "test_topic"
+    topic = "/weight_change"
     
     # Create MQTT client instance
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)

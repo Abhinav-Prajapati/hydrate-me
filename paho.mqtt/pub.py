@@ -10,7 +10,7 @@ def on_publish(client, userdata, mid,reason_code, properties):
 def run_publisher():
     broker = "localhost"
     port = 1883
-    topic = "test_topic"
+    topic = "/led_mode"
     
     # Create MQTT client instance
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -28,7 +28,7 @@ def run_publisher():
         msg_count = 1
         # Continuously publish messages every 1 second
         while True:
-            message = f"Message {msg_count}: {random.randint(1, 100)}"
+            message = f"{0}"
             result = client.publish(topic, message, qos=1)
             result.wait_for_publish()  # Ensure the message is published
             print(f"Published: {message}")
