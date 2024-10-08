@@ -11,19 +11,21 @@ def on_subscribe(client, userdata, mid, granted_qos, properties=None):
 def on_message(client, userdata, msg):
     try:
         # Log when a message is received
-        current_weight = msg.payload.decode()
-        logger.info(f"Received `{current_weight}` from topic `{msg.topic}`")
+        message = msg.payload.decode()
+        device_ID, current_weight = message.split("|")
+
+        logger.info(f"Received `{current_weight}` from device `{device_ID}`")
 
         # Add sensor data to the database
         with get_db_session() as session:
             repository = WaterLevelRepository(session)
             repository.add_sensor_data(
-                sensor_id="esp32-1234",
+                sensor_id=device_ID,
                 data=current_weight
             )
 
         # Log success when data is written to the database
-        logger.success(f"Data `{current_weight}` successfully written to the database for sensor 'esp32-1234'")
+        logger.success(f"Data `{current_weight}` successfully written to the database for device {device_ID}")
 
     except Exception as e:
         # Log any exceptions that occur during message handling or database interaction
