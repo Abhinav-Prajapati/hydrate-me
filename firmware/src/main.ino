@@ -340,8 +340,9 @@ void ledTask(void *pvParameters)
 
 void onMqttConnect(bool sessionPresent)
 {
+  String topic = String("/") + DEVICE_ID + String("-") + TOPIC_LED_MODE;
   Serial.println("Connected to MQTT.");
-  mqttClient.subscribe(TOPIC_LED_MODE, 1);
+  mqttClient.subscribe(topic.c_str(), 1);
 }
 
 void onMqttSubscribe(uint16_t packetId, uint8_t qos)
@@ -393,11 +394,14 @@ void mqttTask(void *pvParameters)
       Serial.print("Data received from queue: ");
       Serial.println(weightData);
 
-      // Convert the weight data to string format
-      String payload = String(weightData);
+      /*
+        inclue deice id along with current bottle weight
+        "esp32-n2vf7inz|30.34"
+      */
+      String payload = DEVICE_ID + String("|") + (weightData);
 
       // Publish the data to the MQTT topic
-      mqttClient.publish(TOPIC_WEIGHT_CHANGE, 1, false, payload.c_str()); // Change TOPIC to your publish topic
+      mqttClient.publish(TOPIC_WEIGHT_CHANGE, 1, false, payload.c_str());
 
       Serial.print("Published to MQTT: ");
       Serial.println(payload);
