@@ -340,8 +340,8 @@ void ledTask(void *pvParameters)
 
 void onMqttConnect(bool sessionPresent)
 {
-  String topic = String("/") + DEVICE_ID + String("-") + TOPIC_LED_MODE;
-  Serial.println("Connected to MQTT.");
+  String topic = String("/") + DEVICE_ID + TOPIC_LED_MODE;
+  Serial.println("Connected to MQTT. " + topic);
   mqttClient.subscribe(topic.c_str(), 1);
 }
 
@@ -353,7 +353,6 @@ void onMqttSubscribe(uint16_t packetId, uint8_t qos)
 void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
 {
   Serial.print("Received message on topic: ");
-  Serial.println(topic);
 
   // Convert the payload to a string
   String messagePayload;
