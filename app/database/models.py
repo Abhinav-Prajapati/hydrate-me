@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Time
+from sqlalchemy import Column, Integer, String, DateTime, Time, Float
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 from sqlalchemy.orm import relationship
@@ -26,6 +26,11 @@ class Users(Base):
     wakeup_time = Column(Time, nullable=True)
     sleep_time = Column(Time, nullable=True) 
     bottle_weight = Column(Integer, nullable=True) 
+
+    age = Column(Integer, nullable=True)           
+    weight = Column(Float, nullable=True)          
+    height = Column(Float, nullable=True)          
+    gender = Column(String(10), nullable=True)     
 
 # Create the tables if not exists
 Base.metadata.create_all(bind=engine)
