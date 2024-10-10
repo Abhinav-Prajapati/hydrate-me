@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict
+from sqlalchemy import Float
 from sqlalchemy.orm import sessionmaker, Session
 from fastapi import HTTPException, Depends, APIRouter
 from pydantic import BaseModel
@@ -83,7 +84,7 @@ async def get_week_water_intake(user_id: int, db: Session = Depends(get_db)):
     return [{"timestamp": t, "data": d} for t, d in week_water_intake]
 
 
-@router.get("/api/v1/user/{user_id}/total-water-intake", response_model=float)
+@router.get("/api/v1/user/{user_id}/total-water-intake", response_model=Dict[str, float])
 async def get_total_water_intake_today(user_id: int, db: Session = Depends(get_db)):
     """
     Fetches the total water intake for today for the given user ID.
