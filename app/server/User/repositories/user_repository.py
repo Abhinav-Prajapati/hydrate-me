@@ -1,6 +1,5 @@
 from sqlalchemy import func
 from datetime import datetime, timedelta
-from sqlalchemy.orm.exc import NoResultFound
 from app.database.models import SensorData, Users
 from typing import List, Tuple, Dict, Union, Optional
 
