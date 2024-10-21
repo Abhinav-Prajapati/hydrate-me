@@ -33,6 +33,8 @@ class UserInfo(BaseModel):
     weight: Optional[float] = None
     height: Optional[float] = None
     gender: Optional[str] = None
+    currect_water_level_in_bottle: Optional[int] = None  
+    is_bottle_on_dock: Optional[bool] = None  
 
 class WaterIntake(BaseModel):
     timestamp: str
@@ -238,3 +240,57 @@ async def get_daily_goal(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Daily goal not found")
 
     return {"daily_goal": daily_goal}
+
+@router.get("/api/v1/user/{user_id}/current-water-level", response_model=Dict[str, Optional[int]])
+async def get_current_water_level(user_id: int, db: Session = Depends(get_db)):
+    """
+    Fetches the current water level in the user's bottle.
+    """
+    user_service = UserService(db, user_id=user_id)
+    current_level = user_service.get_current_bottle_water_level()
+
+    if current_level is None:
+        raise HTTPException(status_code=404, detail="Current water level not found")
+
+    return {"current_water_level": int(float(current_level))}
+
+
+@router.get("/api/v1/user/{user_id}/is-bottle-on-dock", response_model=Dict[str, Optional[bool]])
+async def get_is_bottle_on_dock(user_id: int, db: Session = Depends(get_db)):
+    """
+    Fetches the status of whether the bottle is placed on the dock.
+    """
+    user_service = UserService(db, user_id=user_id)
+    is_on_dock = user_service.get_is_bottle_placed_on_dock()
+
+    if is_on_dock is None:
+        raise HTTPException(status_code=404, detail="Bottle dock status not found")
+
+    return {"is_bottle_on_dock": is_on_dock}
+
+
+@router.put("/api/v1/user/{user_id}/current-water-level", response_model=Dict[str, str])
+async def set_current_water_level(user_id: int, current_level: int, db: Session = Depends(get_db)):
+    """
+    Updates the current water level in the user's bottle.
+    """
+    user_service = UserService(db, user_id=user_id)
+    result = user_service.set_current_bottle_water_level(current_level)
+
+    if not result:
+        raise HTTPException(status_code=400, detail="Failed to update current water level")
+
+    return {"message": "Current water level updated successfully"}
+
+@router.put("/api/v1/user/{user_id}/is-bottle-on-dock", response_model=Dict[str, str])
+async def set_is_bottle_on_dock(user_id: int, is_on_dock: bool, db: Session = Depends(get_db)):
+    """
+    Updates the status of whether the bottle is placed on the dock.
+    """
+    user_service = UserService(db, user_id=user_id)
+    result = user_service.set_is_bottle_placed_on_dock(is_on_dock)
+
+    if not result:
+        raise HTTPException(status_code=400, detail="Failed to update bottle dock status")
+
+    return {"message": "Bottle dock status updated successfully"}

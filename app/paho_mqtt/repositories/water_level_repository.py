@@ -38,16 +38,6 @@ class WaterLevelRepository:
         """
         return self.db_session.query(SensorData).all()
 
-    def get_sensor_data_by_id(self, sensor_id: str) -> List[SensorData]:
-        """
-        Retrieves all sensor data associated with a specific sensor ID.
-        Args:
-            sensor_id (str): The ID of the sensor whose data is being fetched.
-        Returns:
-            List[SensorData]: A list of sensor data records filtered by sensor ID.
-        """
-        return self.db_session.query(SensorData).filter_by(sensor_id=sensor_id).all()
-
     def get_bottle_weight_by_sensor(self, sensor_id: str) -> int:
         """
         Fetches and returns the user's bottle weight based on the provided sensor ID.
@@ -62,5 +52,26 @@ class WaterLevelRepository:
 
         if user:
             return user.bottle_weight
+        else:
+            raise ValueError(f"User not found with the given sensor ID: {sensor_id}")
+            
+    def update_is_bottle_picked(self, sensor_id: str, is_picked_up: bool) -> None:
+        """
+        Updates the 'is_bottle_on_dock' field for the user associated with the given sensor ID.
+
+        Args:
+            sensor_id (str): The sensor ID associated with the user whose bottle status is being updated.
+            is_picked_up (bool): True if the bottle is picked up (not on the dock), False if the bottle is on the dock.
+
+        Returns:
+            None
+        Raises:
+            ValueError: If no user is found with the given sensor ID.
+        """
+        user = self.db_session.query(Users).filter_by(sensor_id=sensor_id).first()
+
+        if user:
+            user.is_bottle_on_dock = not is_picked_up  
+            self.db_session.commit()
         else:
             raise ValueError(f"User not found with the given sensor ID: {sensor_id}")

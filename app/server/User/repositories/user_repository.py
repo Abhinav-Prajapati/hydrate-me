@@ -48,7 +48,9 @@ class UserRepository:
                 "age": user.age,
                 "weight": user.weight,
                 "height": user.height,
-                "gender": user.gender
+                "gender": user.gender,
+                "currect_water_level_in_bottle": user.currect_water_level_in_bottle,
+                "is_bottle_on_dock": user.is_bottle_on_dock,
             }
         else:
             return {"error": "User not found"}
@@ -200,39 +202,18 @@ class UserRepository:
 
         return results
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-
-    '''--------------- IMPLEMENT BELOW FUNCTION -------------------'''
-
-    # TODO: create user when no user_id is passed in cunstrocter
-    def add_user(self, name, sensor_id): 
+    def get_latest_sensor_data(self, sensor_id: str) -> Optional[SensorData]:
         """
-        Adds a new user to the Users table.
+        Fetches the most recent sensor data entry for the given sensor ID.
+
+        Args:
+            sensor_id (str): The ID of the IoT sensor device.
+
+        Returns:
+            SensorData: The most recent sensor data entry, or None if no data is found.
         """
-        new_user = Users(
-            name=name,
-            sensor_id=sensor_id
-        )
-        self.db_session.add(new_user)
-        self.db_session.commit()
-        return {"success": True, "message": "User added successfully"}
+        try:
+            return self.db_session.query(SensorData).filter_by(sensor_id=sensor_id).order_by(SensorData.timestamp.desc()).first()
+        except Exception as e:
+            print(f"Error fetching latest sensor data for {sensor_id}: {e}")
+            return None
