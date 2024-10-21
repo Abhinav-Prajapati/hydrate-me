@@ -1,7 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime, Time, Float
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, Time, Float
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
-from sqlalchemy.orm import relationship
 
 from app.database.db import engine
 
@@ -31,6 +30,9 @@ class Users(Base):
     weight = Column(Float, nullable=True)          
     height = Column(Float, nullable=True)          
     gender = Column(String(10), nullable=True)     
+    
+    currect_water_level_in_bottle = Column(Integer, nullable=True)
+    is_bottle_on_dock = Column(Boolean, nullable=True)
 
-# Create the tables if not exists
+# Create the tables if it does not exists
 Base.metadata.create_all(bind=engine)
