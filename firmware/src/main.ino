@@ -23,7 +23,7 @@ SemaphoreHandle_t xMutex;                  // Mutex handler to handle animation_
 float TOLERANCE = 20.0;                  // Acceptable deviation in weight for grouping
 float MIN_WATER_LEVEL_DIFFERENCE = 20.0; // Minimum change in water level to trigger an event
 float calibration_factor = -270;         // Calibration factor. Adjust this based on your sensor.
-float offset_weight = 84.4;              // Reading of scale without any object placed on it.
+float offset_weight = 100.4;              // Reading of scale without any object placed on it.
 
 float raw_reading;
 
@@ -107,6 +107,7 @@ void setup()
   }
   Serial.println();
   Serial.println("Connected to Wi-Fi");
+  animation_mode = 0; // Turn of light once esp is connected to wifi
   /*********************************************************************************/
 
   /***************************** Configure MQTT Client *****************************/
@@ -227,17 +228,27 @@ void weightTask(void *pvParameters)
     // Read a value from the HX711 with the current calibration factor
     float raw_reading = scale.get_units(1) - offset_weight; // Subtract the offset weight
     float current_weight = add_reading(raw_reading);        // Add the reading to the sliding window
+    // Serial.println("Current sensor reading " + String(raw_reading));
 
     // Check if bottle is picked or placed
     if (current_weight != -1 && abs(last_weight - current_weight) > MIN_WATER_LEVEL_DIFFERENCE)
     {
-      if (abs(current_weight) < 15.0)
+      if (abs(current_weight) < 30.0)
       { // When bottle picked up
         // Lock the mutex before writing to the shared variable
         if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
         {
           // TODO: make api call to server so it knows that bottle has been pikced
           Serial.println("bottle has been picked");
+          
+          String payload = DEVICE_ID + String("|") + String("is_picked_up") + String("|") + String("1");
+
+          // Publish the data to the MQTT topic
+          mqttClient.publish(TOPIC_WEIGHT_CHANGE, 1, false, payload.c_str());
+
+          Serial.print("Published to MQTT: ");
+          Serial.println(payload);
+          
           animation_mode = 3;     // if bottle is picked up set animation to breating green
           xSemaphoreGive(xMutex); // Release the mutex
         }
@@ -250,6 +261,15 @@ void weightTask(void *pvParameters)
         {
           // TODO: make api call to server so it knows that bottle has been placed back
           Serial.println("bottle has been placed back");
+          
+          String payload = DEVICE_ID + String("|") + String("is_picked_up") + String("|") + String("0");
+
+          // Publish the data to the MQTT topic
+          mqttClient.publish(TOPIC_WEIGHT_CHANGE, 1, false, payload.c_str());
+
+          Serial.print("Published to MQTT: ");
+          Serial.println(payload);
+          
           animation_mode = 0;     // if bottle is placed down turn off animation
           xSemaphoreGive(xMutex); // Release the mutex
         }
@@ -394,10 +414,10 @@ void mqttTask(void *pvParameters)
       Serial.println(weightData);
 
       /*
-        inclue deice id along with current bottle weight
-        "esp32-n2vf7inz|30.34"
+        inclue device id along with current bottle weight
+        "esp32-n2vf7inz|weight|30.34"
       */
-      String payload = DEVICE_ID + String("|") + (weightData);
+      String payload = DEVICE_ID + String("|") + String("weight") + String("|") + String(weightData);
 
       // Publish the data to the MQTT topic
       mqttClient.publish(TOPIC_WEIGHT_CHANGE, 1, false, payload.c_str());
