@@ -28,7 +28,7 @@ export default function Tab() {
                 <View key={key}>
                   <AnimatedCircularProgress
                     size={40}
-                    width={4}
+                    width={3}
                     fill={item.value}
                     tintColor="#1fadff"
                     backgroundColor="#1f2b3b"
