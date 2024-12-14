@@ -1,7 +1,9 @@
-import { useAuth } from '@/context/authContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
+import AppLoading from 'expo-app-loading';
+import { useFonts } from "expo-font";
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface WeekItem {
   day: string;
@@ -37,7 +39,7 @@ export default function Tab() {
     { day: 'W', value: 80, active: false },
     { day: 'T', value: 90, active: false },
     { day: 'F', value: 69, active: true },
-    { day: 'S', value: 90, active: false }
+    { day: 'S', value: 0, active: false }
   ];
 
   const highlights: HighlightItem[] = [
@@ -45,6 +47,16 @@ export default function Tab() {
     { label: 'Of Goal', value: '25%', description: 'Percentage of goal completed' },
     { label: 'Bottles to Go', value: 2, description: 'Remaining bottles' }
   ];
+
+  let [fontsLoading] = useFonts({
+    'Comfortaa-Regular': require('../../assets/fonts/Comfortaa-Regular.ttf'),
+    'Comfortaa-Bold': require('../../assets/fonts/Comfortaa-Bold.ttf'),
+    'Comfortaa-Light': require('../../assets/fonts/Comfortaa-Light.ttf'),
+  });
+
+  if (!fontsLoading) {
+    return <AppLoading />;
+  }
 
   return (
     <LinearGradient
@@ -64,21 +76,18 @@ export default function Tab() {
 }
 
 const TopBar = () => {
-  const { user, signOut } = useAuth();
   return (
     <View style={styles.topBar}>
-      <Text>
-        {user?.email}
-      </Text>
-      <TouchableOpacity onPress={() => signOut()}>
-        <Text>Logout</Text>
-      </TouchableOpacity>
-      {/* Top bar content can be added here */}
+      <Text style={styles.appName}>HydrateMe</Text>
+
+      <View style={styles.bottleContainer}>
+        <MaterialCommunityIcons size={20} name="bottle-wine-outline" color={'#e6f6ff'} />
+        <Text style={styles.noBottleText}>No Bottle</Text>
+      </View>
     </View>
   );
 };
 
-// 2. Weeks Component
 const Weeks = ({ weeks }: WeeksProps) => {
   return (
     <View style={styles.weeks}>
@@ -138,7 +147,7 @@ const PiChart = ({ fillPercentage, goal, current }: PiChartProps) => {
           <View style={styles.center}>
             <Text style={styles.value}>{current}</Text>
             <Text style={{ fontSize: 18, color: '#eef5ff' }}>
-              Goal {goal}ml
+              Goal {goal} ml
             </Text>
           </View>
         )}
@@ -178,12 +187,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-start',
     width: '100%',
-  },
-  topBar: {
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   weeks: {
     gap: 4,
@@ -235,6 +238,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 22,
     paddingVertical: 10,
+    fontFamily: 'Comfortaa-Regular'
   },
   center: {
     position: 'absolute',
@@ -243,7 +247,33 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 55,
-    fontWeight: 'light',
+    fontFamily: 'Comfortaa-Light',
     color: '#eef5ff',
-  }
+  },
+  topBar: {
+    height: 100,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+  },
+  appName: {
+    fontSize: 26,
+    marginTop: 15,
+    fontFamily: 'Comfortaa-Bold',
+    color: '#eef5ff',
+    flex: 1,
+  },
+  bottleContainer: {
+    marginTop: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  noBottleText: {
+    marginLeft: 2,
+    fontSize: 12,
+    color: '#eef5ff',
+  },
 });
