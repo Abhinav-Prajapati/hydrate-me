@@ -1,21 +1,34 @@
-import React, { useContext } from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import { AuthContext } from './authContext';
-import SignUpScreen from '@/app/auth/SignUpScreen';
-import { Link } from 'expo-router';
+import React from 'react';
+import { useAuth } from './authContext';
+import Auth from '@/components/Auth';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const auth = useContext(AuthContext);
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, session } = useAuth();
 
-  if (!auth) {
-    return <ActivityIndicator size="large" />;
+  // While checking session state, display a loading spinner
+  if (session === undefined) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#1fadff" />
+      </View>
+    );
   }
 
-  return auth.isAuthenticated ? (
-    <>{children}</>
-  ) : (
-    <SignUpScreen />
-  );
+  if (!user) {
+    return <Auth />;
+  }
+
+  return <>{children}</>;
 };
+
+const styles = StyleSheet.create({
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+});
 
 export default ProtectedRoute;

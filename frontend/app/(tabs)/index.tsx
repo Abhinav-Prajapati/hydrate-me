@@ -1,5 +1,6 @@
+import { useAuth } from '@/context/authContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
 
 interface WeekItem {
@@ -63,8 +64,15 @@ export default function Tab() {
 }
 
 const TopBar = () => {
+  const { user, signOut } = useAuth();
   return (
     <View style={styles.topBar}>
+      <Text>
+        {user?.email}
+      </Text>
+      <TouchableOpacity onPress={() => signOut()}>
+        <Text>Logout</Text>
+      </TouchableOpacity>
       {/* Top bar content can be added here */}
     </View>
   );

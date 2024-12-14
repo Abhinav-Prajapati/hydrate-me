@@ -1,86 +1,50 @@
-
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/utils/supabase';
+import { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
-  user: string | null;
-  token: string | null;
-  login: (token: string, user: string) => void;
-  logout: () => void;
-  isAuthenticated: boolean;
+  session: Session | null;
+  user: User | null;
+  signOut: () => void;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<string | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-
-  const isAuthenticated = !!token;
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    console.log("AuthProvider mounted");
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+    });
 
-    const fetchStoredData = async () => {
-      try {
-        const storedToken = await AsyncStorage.getItem('token');
-        const storedUser = await AsyncStorage.getItem('user');
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+    });
 
-        if (storedToken) {
-          setToken(storedToken);
-          console.log("Token retrieved from storage:", storedToken);
-        } else {
-          console.log("No token found in storage");
-        }
-
-        if (storedUser) {
-          setUser(storedUser);
-          console.log("User retrieved from storage:", storedUser);
-        } else {
-          console.log("No user found in storage");
-        }
-      } catch (error) {
-        console.error("Error fetching stored data:", error);
-      }
+    return () => {
+      authListener?.unsubscribe(); // Cleanup the listener when the component is unmounted
     };
-
-    fetchStoredData();
   }, []);
 
-  const login = async (token: string, user: string) => {
-    console.log("Login called with token:", token, "and user:", user);
-
-    setToken(token);
-    console.log("Token set to:", token);
-
-    setUser(user);
-    console.log("User set to:", user);
-
-    try {
-      await AsyncStorage.setItem('token', token);
-      await AsyncStorage.setItem('user', user);
-      console.log('User and token stored successfully');
-    } catch (error) {
-      console.error('Error storing auth data to localstorage:', error);
-    }
-  };
-
-  const logout = async () => {
-    console.log("Logout called");
-    setToken(null);
-    setUser(null);
-    try {
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
-      console.log('Auth data removed successfully');
-    } catch (error) {
-      console.error('Error clearing auth data:', error);
-    }
+  const signOut = () => {
+    supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ session, user, signOut }}>
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = (): AuthContextType => {
+  const context = React.useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
