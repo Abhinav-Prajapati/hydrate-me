@@ -2,14 +2,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { View, Text, StyleSheet } from 'react-native';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
 
-const pieData = [
-
-  { value: 54, color: '#177AD5', text: '54%' },
-  { value: 40, color: '#79D2DE', text: '30%' },
-  { value: 20, color: '#ED6665', text: '26%' },
-];
-
 export default function Tab() {
+  const weeks = [
+    { day: 'S', value: 80, active: false },
+    { day: 'M', value: 73, active: false },
+    { day: 'T', value: 63, active: false },
+    { day: 'W', value: 80, active: false },
+    { day: 'T', value: 90, active: false },
+    { day: 'F', value: 69, active: true },
+    { day: 'S', value: 90, active: false },]
   return (
     <LinearGradient
       colors={['#1A5C87', '#19233e']}
@@ -18,11 +19,43 @@ export default function Tab() {
       style={styles.container}
     >
       <View style={styles.contentContainer}>
-
         <View style={styles.topBar}>
         </View>
-
         <View style={styles.weeks}>
+          {
+            weeks.map(
+              (item, key) => (
+                <View key={key}>
+                  <AnimatedCircularProgress
+                    size={40}
+                    width={4}
+                    fill={item.value}
+                    tintColor="#1fadff"
+                    backgroundColor="#1f2b3b"
+                    rotation={0} // Start from the top
+                    lineCap="round"
+                  >
+                    {() => (
+                      <View style={{
+                        backgroundColor: item.active ? '#1fadff' : 'transparent',
+                        width: 27,
+                        height: 27,
+                        borderRadius: '100%',
+                        margin: 10,
+                        justifyContent: 'center'
+                      }}>
+                        <Text style={{
+                          textAlign: 'center',
+                          fontSize: 16,
+                          color: '#eef5ff',
+                        }}>{item.day}</Text>
+                      </View>
+                    )}
+                  </AnimatedCircularProgress>
+                </View>
+              )
+            )
+          }
         </View>
 
         <View style={styles.piChart}>
@@ -101,6 +134,8 @@ const styles = StyleSheet.create({
   },
 
   weeks: {
+    gap: 4,
+    flexDirection: 'row',
     height: 70,
     marginHorizontal: 15,
     marginTop: 15,
