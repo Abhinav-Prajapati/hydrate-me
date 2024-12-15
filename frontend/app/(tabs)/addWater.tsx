@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View,
   Text,
@@ -49,6 +50,9 @@ export default function WaterTracker() {
       console.error('Error adding water intake:', error);
     } finally {
       setIsLoading(false);
+      Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Success
+      )
     }
   };
 
