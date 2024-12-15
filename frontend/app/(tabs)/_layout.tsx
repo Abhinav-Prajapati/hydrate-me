@@ -30,7 +30,7 @@ export default function TabLayout() {
         options={{
           title: 'Add Drink',
           tabBarLabel: '',
-
+          headerShown: false,
           tabBarIcon: ({ color }) =>
             <View style={{
               padding: 10,
