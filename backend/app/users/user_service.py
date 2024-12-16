@@ -18,6 +18,7 @@ def retrieve_user_data(db: Session, user_uuid: str):
         "username": db_user.username,
         "sensor_id": db_user.sensor_id,
         "currect_water_level_in_bottle": db_user.currect_water_level_in_bottle,
+        "todays_water_intake_in_ml": db_user.todays_water_intake_in_ml,
         "bottle_weight": db_user.bottle_weight,
         "is_bottle_on_dock": db_user.is_bottle_on_dock,
         "daily_goal": db_user.daily_goal,
@@ -48,4 +49,19 @@ def add_consumption_for_user(
         "user_id": str(user_id),
         "water_intake_in_ml": water_record.water_intake_in_ml,
         "timestamp": water_record.timestamp,
+    }
+
+
+def get_user_water_data(db: Session, user_uuid: str):
+    """Get user's water related data"""
+    user_id = uuid.UUID(user_uuid)
+    db_user = get_user_by_id(db, user_id)
+
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "currect_water_level_in_bottle": db_user.currect_water_level_in_bottle,
+        "daily_goal": db_user.daily_goal,
+        "todays_water_intake_in_ml": db_user.todays_water_intake_in_ml,
+        "is_bottle_on_dock": db_user.is_bottle_on_dock,
     }

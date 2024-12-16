@@ -42,38 +42,41 @@ class WaterIntake(Base):
 class Users(Base):
     __tablename__ = "user_profile"
 
-    # Modify id to be UUID and add a reference to Supabase's auth.users
+    # Primary key with default UUID
     id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False
     )
 
+    # User details
     username = Column(String(50), nullable=False)
     sensor_id = Column(String(50), unique=True, nullable=True)
 
+    # Water-related details
     currect_water_level_in_bottle = Column(Integer, nullable=True)
     bottle_weight = Column(Integer, nullable=True)
     is_bottle_on_dock = Column(Boolean, nullable=True)
     daily_goal = Column(Integer, nullable=True)
+    todays_water_intake_in_ml = Column(Integer, nullable=False, default=0)  # Added
 
+    # Time details
     wakeup_time = Column(Time, nullable=True)
     sleep_time = Column(Time, nullable=True)
 
+    # User profile attributes
     age = Column(Integer, nullable=True)
     weight = Column(Float, nullable=True)
     height = Column(Float, nullable=True)
     gender = Column(String(10), nullable=True)
 
-    # Relationship to WaterIntake table, referencing supabase_user_id
-    sensor_data = relationship(
-        "WaterIntake",
-        back_populates="user",
-        foreign_keys=[WaterIntake.supabase_user_id],
-    )
-
-    # Adding a foreign key constraint to Supabase `auth.users` table
+    # Supabase user ID reference
     supabase_user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("auth.users.id", ondelete="CASCADE"),
         nullable=False,
-        unique=True,  # Ensure uniqueness
+        unique=True,
+    )
+    sensor_data = relationship(
+        "WaterIntake",
+        back_populates="user",
+        foreign_keys=[WaterIntake.supabase_user_id],
     )
