@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { register, RegisterParams, RegisterResponse } from '@/api/auth';
+import { register, RegisterParams, RegisterResponse } from '@/api/index';
 import { AuthContext } from '@/context/authContext';
 import { Link } from 'expo-router';
 
