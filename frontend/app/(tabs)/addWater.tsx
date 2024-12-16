@@ -13,12 +13,14 @@ import AppLoading from 'expo-app-loading';
 import CustomSlider from '@/components/Slider';
 import { useAuth } from '@/context/authContext';
 import { addWaterIntake } from '@/api';
+import useStore from '@/store/useStore';
 
 export default function WaterTracker() {
   const [isSwitchEnabled, setIsSwitchEnabled] = useState(true);
   const [selectedWaterLevel, setSelectedWaterLevel] = useState<number>(200);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const { fetchUserWaterData } = useStore();
 
   let [fontsLoading] = useFonts({
     'Comfortaa-Regular': require('../../assets/fonts/Comfortaa-Regular.ttf'),
@@ -47,6 +49,7 @@ export default function WaterTracker() {
     setIsLoading(true);
     try {
       await addWaterIntake('test_sensor', selectedWaterLevel, accessToken);
+      fetchUserWaterData(accessToken);
     } catch (error) {
       console.error('Error adding water intake:', error);
     } finally {
