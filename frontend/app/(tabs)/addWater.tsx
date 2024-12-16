@@ -35,6 +35,7 @@ export default function WaterTracker() {
   useEffect(() => {
     if (session?.access_token) {
       setAccessToken(session.access_token);
+      console.log(session.access_token);
     }
   }, [session]);
 
