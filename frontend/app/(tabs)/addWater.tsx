@@ -228,6 +228,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   saveButtonDisabled: {
-    backgroundColor: '#a5c4d8',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
 });
