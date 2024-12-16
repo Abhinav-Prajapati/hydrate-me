@@ -1,5 +1,6 @@
 # repository/user_repository.py
 from datetime import datetime
+from typing import Optional
 from sqlalchemy.orm import Session
 from app.database.models import Users, WaterIntake
 import uuid
@@ -11,7 +12,11 @@ def get_user_by_id(db: Session, user_id: uuid.UUID):
 
 
 def add_water_intake(
-    db: Session, user_id: uuid.UUID, sensor_id: str, water_intake: int
+    db: Session,
+    user_id: uuid.UUID,
+    sensor_id: str,
+    water_intake: int,
+    time: Optional[datetime] = datetime.utcnow(),
 ):
     """
     Add a new water intake entry for the user.
@@ -20,7 +25,7 @@ def add_water_intake(
         supabase_user_id=user_id,
         sensor_id=sensor_id,
         water_intake_in_ml=water_intake,
-        timestamp=datetime.utcnow(),
+        timestamp=time,
     )
     db.add(new_intake)
     db.commit()

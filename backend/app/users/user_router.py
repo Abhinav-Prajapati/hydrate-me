@@ -1,9 +1,13 @@
+from datetime import datetime
+from operator import itruediv
+
+from pydantic import BaseModel
 from app.users.user_service import get_user_water_data, retrieve_user_data
 from app.database.db import get_db_session
 from app.utils.validate_jwt import validate_jwt
 from app.users.user_service import add_consumption_for_user
 
-from fastapi import APIRouter, Depends, responses
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 router = APIRouter()
@@ -19,12 +23,17 @@ def get_user_info(
     return user_data
 
 
+class WaterIntakeRequest(BaseModel):
+    sensor_id: str = ""
+    intake: int = 0
+    time: datetime
+
+
 @router.post("/add_intake")
 def add_water_intake(
     db: Session = Depends(get_db_session),
     user_uuid: str = Depends(validate_jwt),
-    sensor_id: str = "",
-    intake: int = 0,
+    intake_data: WaterIntakeRequest = Depends(),
 ):
     """
     Add water intake data for the user.
@@ -32,8 +41,9 @@ def add_water_intake(
     response = add_consumption_for_user(
         db,
         user_uuid,
-        sensor_id,
-        intake,
+        intake_data.sensor_id,
+        intake_data.intake,
+        intake_data.time,
     )
     return response
 

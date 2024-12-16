@@ -1,4 +1,6 @@
 # services/user_service.py
+from datetime import datetime
+from typing import Optional
 from sqlalchemy.orm import Session
 from app.users.user_repo import add_water_intake, get_user_by_id
 import uuid
@@ -32,7 +34,11 @@ def retrieve_user_data(db: Session, user_uuid: str):
 
 
 def add_consumption_for_user(
-    db: Session, user_uuid: str, sensor_id: str, water_intake_in_ml: int
+    db: Session,
+    user_uuid: str,
+    sensor_id: str,
+    water_intake_in_ml: int,
+    time: Optional[datetime] = None,
 ):
     """
     Add water consumption for the user, ensuring the user exists.
@@ -43,12 +49,10 @@ def add_consumption_for_user(
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    water_record = add_water_intake(db, user_id, sensor_id, water_intake_in_ml)
+    water_record = add_water_intake(db, user_id, sensor_id, water_intake_in_ml, time)
 
     return {
-        "user_id": str(user_id),
-        "water_intake_in_ml": water_record.water_intake_in_ml,
-        "timestamp": water_record.timestamp,
+        "msg": "water intake added",
     }
 
 
