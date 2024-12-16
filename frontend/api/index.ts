@@ -1,9 +1,10 @@
 // @api/index.ts
-
 const API_BASE_URL = 'http://192.168.81.213:8000';
 
 export const addWaterIntake = async (sensorId: string, intake: number, token: string) => {
-  const response = await fetch(`${API_BASE_URL}/user/add_intake?sensor_id=${sensorId}&intake=${intake}`, {
+  const encodedTime = encodeURIComponent(new Date().toLocaleString('sv-SE', { timeZoneName: 'short' }).replace(' ', 'T').slice(0, 19));
+  console.log(encodedTime)
+  const response = await fetch(`${API_BASE_URL}/user/add_intake?sensor_id=${sensorId}&intake=${intake}&time=${encodedTime}`, {
     method: 'POST',
     headers: {
       'Accept': 'application/json',
