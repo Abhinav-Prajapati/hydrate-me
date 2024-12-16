@@ -4,6 +4,9 @@ import { AnimatedCircularProgress } from 'react-native-circular-progress';
 import AppLoading from 'expo-app-loading';
 import { useFonts } from "expo-font";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/authContext';
+import useStore from '@/store/useStore';
 
 interface WeekItem {
   day: string;
@@ -31,7 +34,31 @@ interface HighlightsProps {
   highlights: HighlightItem[];
 }
 
+interface UserWaterData {
+  currect_water_level_in_bottle: number | null;
+  daily_goal: number | null;
+  todays_water_intake_in_ml: number;
+  is_bottle_on_dock: boolean | null;
+}
+
 export default function Tab() {
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const { userWaterData, fetchUserWaterData } = useStore();
+  const { session } = useAuth();
+
+  useEffect(() => {
+    if (session?.access_token) {
+      setAccessToken(session.access_token);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (accessToken) {
+      fetchUserWaterData(accessToken);
+    }
+  }, [accessToken]);
+
+
   const weeks: WeekItem[] = [
     { day: 'S', value: 80, active: false },
     { day: 'M', value: 73, active: false },
@@ -44,7 +71,7 @@ export default function Tab() {
 
   const highlights: HighlightItem[] = [
     { label: 'Day Streak', value: 4, description: 'Days streak' },
-    { label: 'Of Goal', value: '25%', description: 'Percentage of goal completed' },
+    { label: 'Of Goal', value: `${Math.round(userWaterData?.percentage_completed ?? 0)} %`, description: 'Percentage of goal completed' },
     { label: 'Bottles to Go', value: 2, description: 'Remaining bottles' }
   ];
 
@@ -68,7 +95,11 @@ export default function Tab() {
       <View style={styles.contentContainer}>
         <TopBar />
         <Weeks weeks={weeks} />
-        <PiChart fillPercentage={25} goal={2000} current={500} />
+        <PiChart
+          fillPercentage={userWaterData?.percentage_completed ?? 0}
+          goal={userWaterData?.daily_goal ?? -1}
+          current={userWaterData?.todays_water_intake_in_ml ?? -1}
+        />
         <Highlights highlights={highlights} />
       </View>
     </LinearGradient>
