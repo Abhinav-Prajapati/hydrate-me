@@ -34,13 +34,6 @@ interface HighlightsProps {
   highlights: HighlightItem[];
 }
 
-interface UserWaterData {
-  currect_water_level_in_bottle: number | null;
-  daily_goal: number | null;
-  todays_water_intake_in_ml: number;
-  is_bottle_on_dock: boolean | null;
-}
-
 export default function Tab() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const { userWaterData, fetchUserWaterData } = useStore();

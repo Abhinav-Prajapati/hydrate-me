@@ -26,7 +26,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="addWater"
+        name="addWaterIntake"
         options={{
           title: 'Add Drink',
           tabBarLabel: '',
