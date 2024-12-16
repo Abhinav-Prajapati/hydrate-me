@@ -38,7 +38,7 @@ def add_water_intake(
     return response
 
 
-@router.post("/get_user_water_attributes")
+@router.get("/get_user_water_attributes")
 def get_user_water_attributes(
     db: Session = Depends(get_db_session),
     user_uuid: str = Depends(validate_jwt),
