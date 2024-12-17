@@ -44,7 +44,7 @@ const HydrationGoal = () => {
 
   const handleSliderChange = (sliderValue: any) => {
     setValue(sliderValue);
-    Vibration.vibrate(10); // Vibrates for 50ms when slider value changes
+    Vibration.vibrate(20);
   };
 
   return (
