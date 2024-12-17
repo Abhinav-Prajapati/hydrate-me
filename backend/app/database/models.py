@@ -47,6 +47,18 @@ class Users(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False
     )
 
+    supabase_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("auth.users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    sensor_data = relationship(
+        "WaterIntake",
+        back_populates="user",
+        foreign_keys=[WaterIntake.supabase_user_id],
+    )
+
     # User details
     username = Column(String(50), nullable=False)
     sensor_id = Column(String(50), unique=True, nullable=True)
@@ -67,16 +79,3 @@ class Users(Base):
     weight = Column(Float, nullable=True)
     height = Column(Float, nullable=True)
     gender = Column(String(10), nullable=True)
-
-    # Supabase user ID reference
-    supabase_user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
-    )
-    sensor_data = relationship(
-        "WaterIntake",
-        back_populates="user",
-        foreign_keys=[WaterIntake.supabase_user_id],
-    )
