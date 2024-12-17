@@ -1,4 +1,4 @@
-import { getUsersWaterRelatedData } from '@/api';
+import { getUsersWaterRelatedData, getUserProfile } from '@/api';
 import { create } from 'zustand';
 
 interface UserWaterData {
@@ -15,7 +15,7 @@ interface Store {
   fetchUserWaterData: (token: string) => void,
 }
 
-const useStore = create<Store>((set) => ({
+export const useStore = create<Store>((set) => ({
   userWaterData: null,
   setUserWaterData: (data: UserWaterData) => set({ userWaterData: data }),
   fetchUserWaterData: async (token) => {
@@ -36,4 +36,28 @@ const useStore = create<Store>((set) => ({
   },
 }));
 
-export default useStore;
+
+interface UserProfile {
+  username: string,
+  email: string,
+}
+
+interface ProfileStore {
+  userProfile: UserProfile | null,
+  fetchUserProfile: (token: string) => void,
+}
+
+export const useProfileStore = create<ProfileStore>((set) => (
+  {
+    userProfile: null,
+    fetchUserProfile: async (token) => {
+      try {
+        const data = await getUserProfile(token);
+        set({ userProfile: data })
+      } catch (error) {
+        console.log("Failed to set user profile data in store ", error)
+      }
+    }
+  }
+))
+
