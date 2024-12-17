@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Switch,
+  Vibration,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
@@ -40,6 +41,10 @@ export default function WaterTracker() {
       console.log(session.access_token);
     }
   }, [session]);
+
+  useEffect(() => {
+    Vibration.vibrate(5);
+  }, [selectedWaterLevel])
 
   const toggleSwitch = () => setIsSwitchEnabled(prev => !prev);
 
@@ -104,6 +109,7 @@ export default function WaterTracker() {
           inactiveTrackColor="rgba(255, 255, 255, 0.1)"
           initialValue={selectedWaterLevel}
           onValueChange={value => setSelectedWaterLevel(Math.round(value))}
+          step={25}
         />
       </View>
 
