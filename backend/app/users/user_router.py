@@ -2,7 +2,11 @@ from datetime import datetime
 from operator import itruediv
 
 from pydantic import BaseModel
-from app.users.user_service import get_user_water_data, retrieve_user_data
+from app.users.user_service import (
+    get_user_profile_service,
+    get_user_water_data,
+    retrieve_user_data,
+)
 from app.database.db import get_db_session
 from app.utils.validate_jwt import validate_jwt
 from app.users.user_service import add_consumption_for_user
@@ -55,4 +59,14 @@ def get_user_water_attributes(
 ):
     """get user water related details"""
     response = get_user_water_data(db, user_uuid)
+    return response
+
+
+@router.get("/get_user_profile")
+def get_user_profile(
+    db: Session = Depends(get_db_session),
+    user_uuid: str = Depends(validate_jwt),
+):
+    """get user water related details"""
+    response = get_user_profile_service(db, user_uuid)
     return response

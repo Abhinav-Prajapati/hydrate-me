@@ -69,3 +69,14 @@ def get_user_water_data(db: Session, user_uuid: str):
         "todays_water_intake_in_ml": db_user.todays_water_intake_in_ml,
         "is_bottle_on_dock": db_user.is_bottle_on_dock,
     }
+
+
+def get_user_profile_service(db: Session, user_uuid: str):
+    """Get user's profile"""
+    user_id = uuid.UUID(user_uuid)
+    db_user = get_user_by_id(db, user_id)
+
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    # TODO: remvoe hardcoded user email
+    return {"username": db_user.username, "email": "testuser@gmail.com"}
