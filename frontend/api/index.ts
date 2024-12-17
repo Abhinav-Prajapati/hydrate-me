@@ -44,3 +44,23 @@ export const getUsersWaterRelatedData = async (token: string): Promise<userWater
   const data: userWaterDateResponse = await response.json();
   return data;
 };
+
+interface UserProfileResponse {
+  username: string,
+  email: string,
+}
+
+export const getUserProfile = async (token: string): Promise<UserProfileResponse> => {
+  const response = await fetch(`${API_BASE_URL}/user/get_user_profile`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`Error: ${response.statusText}`);
+  }
+  const data: UserProfileResponse = await response.json();
+  return data;
+}
