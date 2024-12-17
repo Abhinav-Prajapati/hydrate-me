@@ -14,7 +14,7 @@ import AppLoading from 'expo-app-loading';
 import CustomSlider from '@/components/Slider';
 import { useAuth } from '@/context/authContext';
 import { addWaterIntake } from '@/api';
-import useStore from '@/store/useStore';
+import { useStore } from '@/store/useStore';
 
 export default function WaterTracker() {
   const [isSwitchEnabled, setIsSwitchEnabled] = useState(true);

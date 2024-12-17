@@ -1,11 +1,25 @@
 import { useAuth } from '@/context/authContext';
 import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
-import { View, Text, StyleSheet, Switch, Vibration } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Switch, Vibration, Image } from 'react-native';
+import { useProfileStore } from '@/store/useStore';
 
 export default function Tab() {
-  const { signOut } = useAuth()
+  const { session } = useAuth()
+  const [jwtToken, setJwtToken] = useState<string | null>()
+  const { userProfile, fetchUserProfile } = useProfileStore()
+
+  useEffect(() => {
+    setJwtToken(session?.access_token)
+  })
+
+  useEffect(() => {
+    if (jwtToken) {
+      fetchUserProfile(jwtToken)
+    }
+  }, [jwtToken])
+
   return (
     <LinearGradient
       colors={['#1A5C87', '#19233e']}
@@ -23,10 +37,13 @@ export default function Tab() {
         </Text>
         <View style={[styles.accoutCard, styles.templateCard]}>
           <View style={styles.profileImageContainer}>
+            <Image
+              style={{ width: 115, height: 115 }}
+              source={{ uri: "https://bbowbmhjzlbxylrpbges.supabase.co/storage/v1/object/sign/avatars/Profile_pic.jpeg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJhdmF0YXJzL1Byb2ZpbGVfcGljLmpwZWciLCJpYXQiOjE3MzQ0NDkwMTcsImV4cCI6MTc2NTk4NTAxN30.VIWKm7aCJ-S8zGUpMC_ipdVvlOIu1TMksfnSsQrRgEM&t=2024-12-17T15%3A23%3A37.672Z" }} />
           </View>
           <View style={{ justifyContent: 'center', paddingLeft: 12 }}>
-            <Text style={{ color: '#fff', fontSize: 22, paddingBottom: 10, fontFamily: 'Comfortaa-Regular' }}>Salty blaze</Text>
-            <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Comfortaa-Light' }}>user1@gmail.com</Text>
+            <Text style={{ color: '#fff', fontSize: 22, paddingBottom: 10, fontFamily: 'Comfortaa-Regular' }}>{userProfile?.username}</Text>
+            <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Comfortaa-Light' }}>{userProfile?.email}</Text>
           </View>
         </View>
       </View>
@@ -121,9 +138,11 @@ const styles = StyleSheet.create({
   },
   profileImageContainer: {
     borderWidth: 1,
+    borderColor: '#fff',
     height: 115,
     width: 115,
     borderRadius: 100,
+    overflow: 'hidden',
   }
 });
 
