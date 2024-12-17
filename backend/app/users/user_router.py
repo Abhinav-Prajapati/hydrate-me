@@ -1,7 +1,8 @@
 from datetime import datetime
-from operator import itruediv
 
+import uuid
 from pydantic import BaseModel
+from app.users.user_repo import update_user_profile
 from app.users.user_service import (
     get_user_profile_service,
     get_user_water_data,
@@ -69,4 +70,16 @@ def get_user_profile(
 ):
     """get user water related details"""
     response = get_user_profile_service(db, user_uuid)
+    return response
+
+
+@router.post("/set_daily_goal")
+def set_daily_goal(
+    db: Session = Depends(get_db_session),
+    user_uuid: str = Depends(validate_jwt),
+    dailyGoal: int = 0,
+):
+    """update daily goal of user"""
+    user_UUID = uuid.UUID(user_uuid)
+    response = update_user_profile(db, user_UUID, daily_goal=dailyGoal)
     return response
