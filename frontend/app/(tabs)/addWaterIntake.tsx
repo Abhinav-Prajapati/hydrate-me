@@ -12,16 +12,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import AppLoading from 'expo-app-loading';
 import CustomSlider from '@/components/Slider';
-import { useAuth } from '@/context/authContext';
 import { addWaterIntake } from '@/api';
 import { useStore } from '@/store/useStore';
+import useAuthStore from '@/store/useAuthStore';
+
 
 export default function WaterTracker() {
   const [isSwitchEnabled, setIsSwitchEnabled] = useState(true);
   const [selectedWaterLevel, setSelectedWaterLevel] = useState<number>(200);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+
   const { fetchUserWaterData } = useStore();
+  const { session } = useAuthStore()
 
   let [fontsLoading] = useFonts({
     'Comfortaa-Regular': require('../../assets/fonts/Comfortaa-Regular.ttf'),
@@ -33,15 +35,6 @@ export default function WaterTracker() {
     return <AppLoading />;
   }
 
-  const { session } = useAuth();
-
-  useEffect(() => {
-    if (session?.access_token) {
-      setAccessToken(session.access_token);
-      console.log(session.access_token);
-    }
-  }, [session]);
-
   useEffect(() => {
     Vibration.vibrate(5);
   }, [selectedWaterLevel])
@@ -49,12 +42,12 @@ export default function WaterTracker() {
   const toggleSwitch = () => setIsSwitchEnabled(prev => !prev);
 
   const handleAddWaterIntake = async () => {
-    if (!accessToken) return;
+    if (!session?.access_token) return;
 
     setIsLoading(true);
     try {
-      await addWaterIntake('test_sensor', selectedWaterLevel, accessToken);
-      fetchUserWaterData(accessToken);
+      await addWaterIntake('test_sensor', selectedWaterLevel, session?.access_token);
+      fetchUserWaterData();
     } catch (error) {
       console.error('Error adding water intake:', error);
     } finally {
