@@ -19,32 +19,43 @@ Base = declarative_base()
 
 class WaterIntake(Base):
     __tablename__ = "water_intake"
+    __table_args__ = {"schema": "public"}
+
+    # Columns
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    sensor_id = Column(String(50), nullable=True)  # Removed ForeignKey for sensor_id
+    sensor_id = Column(String(50), nullable=True)
     water_intake_in_ml = Column(Integer, nullable=True)
 
-    # Foreign key to Users table, referencing supabase_user_id in user_profile
+    # Foreign key directly referencing 'id' in user_profile
     supabase_user_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("user_profile.supabase_user_id", ondelete="CASCADE"),
+        ForeignKey("public.user_profile.id", ondelete="CASCADE"),
         nullable=False,
     )
 
-    # Relationship to Users table, explicitly specifying the foreign key
+    # Relationship to Users
     user = relationship(
         "Users",
         back_populates="sensor_data",
-        foreign_keys=[supabase_user_id],
     )
 
 
 class Users(Base):
     __tablename__ = "user_profile"
+    __table_args__ = {"schema": "public"}
 
-    # Primary key with default UUID
+    # Primary key directly referencing auth.users.id
     id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False
+        UUID(as_uuid=True),
+        primary_key=True,
+        nullable=False,
+    )
+
+    # Relationship to WaterIntake
+    sensor_data = relationship(
+        "WaterIntake",
+        back_populates="user",
     )
 
     # User details
@@ -56,7 +67,7 @@ class Users(Base):
     bottle_weight = Column(Integer, nullable=True)
     is_bottle_on_dock = Column(Boolean, nullable=True)
     daily_goal = Column(Integer, nullable=True)
-    todays_water_intake_in_ml = Column(Integer, nullable=False, default=0)  # Added
+    todays_water_intake_in_ml = Column(Integer, nullable=False, default=0)
 
     # Time details
     wakeup_time = Column(Time, nullable=True)
@@ -67,16 +78,3 @@ class Users(Base):
     weight = Column(Float, nullable=True)
     height = Column(Float, nullable=True)
     gender = Column(String(10), nullable=True)
-
-    # Supabase user ID reference
-    supabase_user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
-    )
-    sensor_data = relationship(
-        "WaterIntake",
-        back_populates="user",
-        foreign_keys=[WaterIntake.supabase_user_id],
-    )

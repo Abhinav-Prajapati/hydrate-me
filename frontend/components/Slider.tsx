@@ -3,7 +3,7 @@ import {
   View,
   StyleSheet,
   PanResponder,
-  Text,
+  Vibration,
 } from 'react-native';
 
 interface CustomSliderProps {
@@ -13,38 +13,45 @@ interface CustomSliderProps {
   activeTrackColor?: string;
   inactiveTrackColor?: string;
   initialValue?: number;
-  maxValue?: number; // New prop for max value
+  maxValue?: number;
+  step?: number;
   onValueChange?: (value: number) => void;
 }
 
 const CustomSlider: React.FC<CustomSliderProps> = ({
-  height = 240, // Default height
-  width = 80, // Default width
-  thumbColor = 'blue', // Default thumb color
-  activeTrackColor = 'blue', // Default active track color
-  inactiveTrackColor = 'rgba(100, 100, 100, 0.3)', // Default inactive track color
-  initialValue = 50, // Default initial value
-  maxValue = 100, // Default max value
-  onValueChange = () => { }, // Default callback
+  height = 240,
+  width = 80,
+  activeTrackColor = 'blue',
+  inactiveTrackColor = 'rgba(100, 100, 100, 0.3)',
+  initialValue = 50,
+  maxValue = 1000,
+  step = 10,
+  onValueChange = () => { },
 }) => {
-  const [sliderValue, setSliderValue] = useState(initialValue); // Slider value state
+  const [sliderValue, setSliderValue] = useState(initialValue);
   const sliderRef = useRef<View>(null);
 
-  // Create a PanResponder to handle gestures
+  const roundToStep = (value: number) => {
+    return Math.round(value / step) * step;
+  };
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderMove: (evt, gestureState) => {
-        // Get the touch position relative to the slider
         sliderRef.current?.measure((x, y, width, height, pageX, pageY) => {
-          const touchY = gestureState.moveY - pageY; // Relative Y position
-          const value = Math.max(
+          const touchY = gestureState.moveY - pageY;
+          let value = Math.max(
             0,
-            Math.min(maxValue, maxValue - (touchY / height) * maxValue) // Convert Y position to value and use maxValue
+            Math.min(maxValue, maxValue - (touchY / height) * maxValue)
           );
+
+          value = roundToStep(value);
+
           setSliderValue(value);
-          onValueChange(value); // Trigger callback
+
+          onValueChange(value);
         });
       },
     })
@@ -58,11 +65,10 @@ const CustomSlider: React.FC<CustomSliderProps> = ({
           style={[styles.sliderTrack, { height, width, backgroundColor: inactiveTrackColor }]}
           {...panResponder.panHandlers} // Attach PanResponder handlers
         >
-          {/* Active Track */}
           <View
             style={[
               styles.activeTrack,
-              { height: `${(sliderValue / maxValue) * 100}%`, backgroundColor: activeTrackColor }, // Adjust active track based on maxValue
+              { height: `${(sliderValue / maxValue) * 100}%`, backgroundColor: activeTrackColor }
             ]}
           />
         </View>

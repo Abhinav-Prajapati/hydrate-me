@@ -6,7 +6,7 @@ import { useFonts } from "expo-font";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/authContext';
-import useStore from '@/store/useStore';
+import { useStore } from '@/store/useStore';
 
 interface WeekItem {
   day: string;
@@ -47,7 +47,8 @@ export default function Tab() {
 
   useEffect(() => {
     if (accessToken) {
-      fetchUserWaterData(accessToken);
+      fetchUserWaterData()
+      console.log(accessToken)
     }
   }, [accessToken]);
 
