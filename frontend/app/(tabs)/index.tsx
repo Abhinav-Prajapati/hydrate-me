@@ -47,7 +47,8 @@ export default function Tab() {
 
   useEffect(() => {
     if (accessToken) {
-      fetchUserWaterData(accessToken);
+      fetchUserWaterData()
+      console.log(accessToken)
     }
   }, [accessToken]);
 
