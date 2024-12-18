@@ -12,7 +12,7 @@ CREATE OR REPLACE FUNCTION update_water_intake_and_time()
 RETURNS TRIGGER AS $$
 BEGIN
   -- Check if the last water intake time is for the previous day
-  IF (SELECT last_water_intake_at::DATE FROM user_profile WHERE id = NEW.supabase_user_id) < CURRENT_TIME THEN
+  IF (SELECT last_water_intake_at::DATE FROM user_profile WHERE id = NEW.supabase_user_id) < CURRENT_DATE THEN
     UPDATE user_profile
     SET 
         todays_water_intake_in_ml = NEW.water_intake_in_ml, -- Reset today's water intake
