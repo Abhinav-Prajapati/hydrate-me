@@ -1,10 +1,7 @@
 -- Create the user_profile table
 create table public.user_profile (
-  -- Primary key with UUID
-  id uuid default uuid_generate_v4() not null primary key,
-
-  -- Supabase user ID reference
-  supabase_user_id uuid references auth.users on delete cascade not null unique,
+  -- Primary key with UUID, directly references auth.users
+  id uuid references auth.users on delete cascade not null primary key,
 
   -- User details
   username text unique,
@@ -46,13 +43,13 @@ create policy "Public user profiles are viewable by everyone."
 create policy "Users can insert their own user_profile."
   on public.user_profile
   for insert 
-  with check ((select auth.uid()) = supabase_user_id);
+  with check ((select auth.uid()) = id);
 
 -- Policy: Users can update their own profile
 create policy "Users can update their own user_profile."
   on public.user_profile
   for update 
-  using ((select auth.uid()) = supabase_user_id);
+  using ((select auth.uid()) = id);
 
 -- Function to insert into user_profile when a new user is created in auth.users
 create function public.handle_new_user_profile()
@@ -60,7 +57,7 @@ returns trigger
 set search_path = ''
 as $$
 begin
-  insert into public.user_profile (supabase_user_id)
+  insert into public.user_profile (id)
   values (new.id);
   return new;
 end;
