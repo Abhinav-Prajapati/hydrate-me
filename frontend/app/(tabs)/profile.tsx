@@ -1,25 +1,13 @@
-import { useAuth } from '@/context/authContext';
 import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Switch, Vibration, Image } from 'react-native';
 import { useProfileStore } from '@/store/useStore';
+import useAuthStore from '@/store/useAuthStore';
+import { useStore } from '@/store/useStore';
+import { setDailyGoal } from '@/api';
 
 export default function Tab() {
-  const { session } = useAuth()
-  const [jwtToken, setJwtToken] = useState<string | null>()
-  const { userProfile, fetchUserProfile } = useProfileStore()
-
-  useEffect(() => {
-    setJwtToken(session?.access_token)
-  })
-
-  useEffect(() => {
-    if (jwtToken) {
-      fetchUserProfile(jwtToken)
-    }
-  }, [jwtToken])
-
   return (
     <LinearGradient
       colors={['#1A5C87', '#19233e']}
@@ -30,45 +18,75 @@ export default function Tab() {
       <View style={styles.header}>
         <Text style={styles.headerText}>Profile</Text>
       </View>
-
-      <View>
-        <Text style={{ color: '#fff', fontSize: 22, paddingBottom: 8, paddingLeft: 15, fontFamily: 'Comfortaa-Regular' }}>
-          Account
-        </Text>
-        <View style={[styles.accoutCard, styles.templateCard]}>
-          <View style={styles.profileImageContainer}>
-            <Image
-              style={{ width: 115, height: 115 }}
-              source={{ uri: "https://bbowbmhjzlbxylrpbges.supabase.co/storage/v1/object/sign/avatars/Profile_pic.jpeg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJhdmF0YXJzL1Byb2ZpbGVfcGljLmpwZWciLCJpYXQiOjE3MzQ0NDkwMTcsImV4cCI6MTc2NTk4NTAxN30.VIWKm7aCJ-S8zGUpMC_ipdVvlOIu1TMksfnSsQrRgEM&t=2024-12-17T15%3A23%3A37.672Z" }} />
-          </View>
-          <View style={{ justifyContent: 'center', paddingLeft: 12 }}>
-            <Text style={{ color: '#fff', fontSize: 22, paddingBottom: 10, fontFamily: 'Comfortaa-Regular' }}>{userProfile?.username}</Text>
-            <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Comfortaa-Light' }}>{userProfile?.email}</Text>
-          </View>
-        </View>
-      </View>
-
+      <UserProfileCard />
       <HydrationGoal />
     </LinearGradient>
   );
 }
 
-const HydrationGoal = () => {
-  const [isEnabled, setIsEnabled] = useState(false);
-  const toggleSwitch = () => setIsEnabled(previousState => !previousState);
-  const [dailyGoal, setDailyGoal] = useState(2000);
-  const [value, setValue] = useState(0);
+const UserProfileCard = () => {
 
-  const handleSliderChange = (sliderValue: any) => {
+  const { userProfile, fetchUserProfile } = useProfileStore();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userProfile) {
+      fetchUserProfile().then(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
+    }
+  }, [userProfile, fetchUserProfile]);
+
+  return (
+    <View>
+      <Text style={styles.userProfileTitle}>
+        Account
+      </Text>
+      <View style={[styles.accoutCard, styles.templateCard]}>
+        <View style={styles.profileImageContainer}>
+          <Image
+            style={{ width: 115, height: 115 }}
+            source={{ uri: "https://bbowbmhjzlbxylrpbges.supabase.co/storage/v1/object/sign/avatars/Profile_pic.jpeg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJhdmF0YXJzL1Byb2ZpbGVfcGljLmpwZWciLCJpYXQiOjE3MzQ0NDkwMTcsImV4cCI6MTc2NTk4NTAxN30.VIWKm7aCJ-S8zGUpMC_ipdVvlOIu1TMksfnSsQrRgEM&t=2024-12-17T15%3A23%3A37.672Z" }}
+          />
+        </View>
+        <View style={{ justifyContent: 'center', paddingLeft: 12 }}>
+          <Text style={styles.usernameText}>{userProfile?.username}</Text>
+          <Text style={styles.emailText}>{userProfile?.email}</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const HydrationGoal = () => {
+  const { session } = useAuthStore();
+  const { fetchUserWaterData } = useStore();
+
+  const [isEnabled, setIsEnabled] = useState(true);
+  const [value, setValue] = useState(0);
+  const recommendedDailyGoal: number = 3000;
+
+  const handleSliderChange = (sliderValue: number) => {
     setValue(sliderValue);
     Vibration.vibrate(20);
   };
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (session?.access_token) {
+        await setDailyGoal(session.access_token, isEnabled ? recommendedDailyGoal : value)
+        fetchUserWaterData()
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [value, isEnabled]);
 
   return (
     <View style={hydrationGoalStyle.container}>
       <Text style={hydrationGoalStyle.title}>Hydration Goal</Text>
       <View style={hydrationGoalStyle.card}>
-        <Text style={hydrationGoalStyle.goalText}>{`${isEnabled ? dailyGoal : value} ml/day`}</Text>
+        <Text style={hydrationGoalStyle.goalText}>{`${isEnabled ? recommendedDailyGoal : value} ml/day`}</Text>
         <View style={hydrationGoalStyle.row}>
           <Text style={[hydrationGoalStyle.rowText, { color: isEnabled ? '#fff' : '#767577' }]}>
             Use Recommended
@@ -77,7 +95,9 @@ const HydrationGoal = () => {
             trackColor={{ false: '#767577', true: '#81b0ff' }}
             thumbColor={isEnabled ? '#1fadff' : '#f4f3f4'}
             ios_backgroundColor="#3e3e3e"
-            onValueChange={toggleSwitch}
+            onValueChange={(toggleValue) => {
+              setIsEnabled(toggleValue);
+            }}
             value={isEnabled}
           />
         </View>
@@ -143,7 +163,25 @@ const styles = StyleSheet.create({
     width: 115,
     borderRadius: 100,
     overflow: 'hidden',
-  }
+  },
+  userProfileTitle: {
+    color: '#fff',
+    fontSize: 22,
+    paddingBottom: 8,
+    paddingLeft: 15,
+    fontFamily: 'Comfortaa-Regular',
+  },
+  usernameText: {
+    color: '#fff',
+    fontSize: 22,
+    paddingBottom: 10,
+    fontFamily: 'Comfortaa-Regular',
+  },
+  emailText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Comfortaa-Light',
+  },
 });
 
 
