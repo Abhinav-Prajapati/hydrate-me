@@ -64,3 +64,19 @@ export const getUserProfile = async (token: string): Promise<UserProfileResponse
   const data: UserProfileResponse = await response.json();
   return data;
 }
+
+export const setDailyGoal = async (token: string, dailyGaol: number) => {
+  const response = await fetch(`${API_BASE_URL}/user/set_daily_goal?dailyGoal=${dailyGaol}`,
+    {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      }
+    });
+  if (!response.ok) {
+    throw new Error(`Error: ${response.statusText}`)
+  }
+  return true
+}
+
