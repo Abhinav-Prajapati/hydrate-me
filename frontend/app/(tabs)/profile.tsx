@@ -6,8 +6,11 @@ import { useProfileStore } from '@/store/useStore';
 import useAuthStore from '@/store/useAuthStore';
 import { useStore } from '@/store/useStore';
 import { setDailyGoal } from '@/api';
+import { useAuth } from '@/context/authContext';
+import { Button } from '@rneui/themed';
 
 export default function Tab() {
+  const { signOut } = useAuth()
   return (
     <LinearGradient
       colors={['#1A5C87', '#19233e']}
@@ -20,6 +23,8 @@ export default function Tab() {
       </View>
       <UserProfileCard />
       <HydrationGoal />
+
+      <Button title='LogOut' onPress={signOut}></Button>
     </LinearGradient>
   );
 }
@@ -54,6 +59,7 @@ const UserProfileCard = () => {
           <Text style={styles.emailText}>{userProfile?.email}</Text>
         </View>
       </View>
+
     </View>
   );
 };

@@ -25,6 +25,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(session?.user ?? null);
     });
 
+    // FIX: why this shit keep giving warning 
     return () => {
       authListener?.unsubscribe(); // Cleanup the listener when the component is unmounted
     };
