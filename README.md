@@ -105,3 +105,9 @@ I will soon be uploading the code, CAD, and circuit diagram to build the IoT Doc
 
 ## Hackathon Achievement
 This project won 1st position in a hackathon! (adding certificate link soon)
+
+* Future updates will include AI-powered hydration recommendations based on user activity and weather conditions.
+* Integration with wearable devices like smartwatches is planned to enhance hydration tracking accuracy.
+* A community feature may be introduced, allowing users to set group hydration challenges with friends.
+* Plans are in place to support voice commands for logging water intake hands-free.
+---
