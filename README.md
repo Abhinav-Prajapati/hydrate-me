@@ -2,6 +2,8 @@
 
 ![App showcase](image/frame.jpg)
 
+## This is a community project
+
 ## Overview
 Hydrate Me is a full-stack application designed to help users track their daily water consumption. This project combines a mobile application and an IoT device to provide a seamless and efficient way to monitor hydration. Users can log their water intake manually via the app or rely on the IoT Dock to automatically track their water intake through strain gauges (basically tracking the change in weight of water, as its density is 1g/ml).
 
